@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary-light: #FDF2F8;
+  --color-primary: #F9A8D4;
+  --color-primary-dark: #DB2777;
+
+  --color-secondary-light: #F3F4F6;
+  --color-secondary: #E5E7EB;
+  --color-secondary-dark: #374151;
+}
+
+@layer base {
+  body {
+    @apply bg-white text-gray-900 font-sans;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-lg;
+  }
+}
