@@ -1,13 +1,24 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary-light: #FDF2F8;
-  --color-primary: #F9A8D4;
-  --color-primary-dark: #DB2777;
+  /* Colores extraídos exactamente del logo */
+  --color-primary-light: #fcfaf7;
+  /* Crema del papel */
+  --color-primary: #4a3f35;
+  /* Marrón oscuro del texto 'Creaciones' */
+  --color-primary-dark: #352d26;
 
-  --color-secondary-light: #F3F4F6;
-  --color-secondary: #E5E7EB;
-  --color-secondary-dark: #374151;
+  --color-accent: #f1a5b1;
+  /* Rosa del lazo y flores */
+  --color-accent-dark: #cc8b96;
+
+  --color-sage: #95a381;
+  /* Verde oliva de las hojas */
+  --color-sage-light: #d4dbc9;
+
+  --color-secondary-light: #f8f5f2;
+  --color-secondary: #e8e2d9;
+  --color-secondary-dark: #5d4b3e;
 }
 
 @layer base {
