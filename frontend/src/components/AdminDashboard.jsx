@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatImageUrl } from '../utils/imageUrl';
+import { API_BASE_URL } from '../utils/api';
 
 const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => {
     const isTechnicalAdmin = user?.role?.toLowerCase() === 'admin';
@@ -86,8 +87,8 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
         try {
             // Stage 1: Critical UI Data
             const [statsRes, prodRes] = await Promise.all([
-                fetch(`http://${window.location.hostname}:8000/admin/stats`),
-                fetch(`http://${window.location.hostname}:8000/products`)
+                fetch(`${API_BASE_URL}/admin/stats`),
+                fetch(`${API_BASE_URL}/products`)
             ]);
 
             const statsData = await statsRes.json().catch(() => ({}));
@@ -107,8 +108,8 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
 
             // Stage 2: Background Data (Inventory)
             const [historyRes, reportRes] = await Promise.all([
-                fetch(`http://${window.location.hostname}:8000/admin/inventory/history`),
-                fetch(`http://${window.location.hostname}:8000/admin/inventory/report`)
+                fetch(`${API_BASE_URL}/admin/inventory/history`),
+                fetch(`${API_BASE_URL}/admin/inventory/report`)
             ]);
 
             const historyData = await historyRes.json().catch(() => []);
@@ -125,7 +126,7 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
     const handleSaveConfig = async () => {
         setIsSavingConfig(true);
         try {
-            const res = await fetch(`http://${window.location.hostname}:8000/admin/settings`, {
+            const res = await fetch(`${API_BASE_URL}/admin/settings`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(configData)
@@ -145,7 +146,7 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
 
     const handleUpdateStock = async (id, newStock) => {
         try {
-            await fetch(`http://${window.location.hostname}:8000/admin/products/${id}`, {
+            await fetch(`${API_BASE_URL}/admin/products/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ stock: newStock })
@@ -158,7 +159,7 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
 
     const handleUpdateOrderStatus = async (id, updates) => {
         try {
-            await fetch(`http://${window.location.hostname}:8000/admin/orders/${id}`, {
+            await fetch(`${API_BASE_URL}/admin/orders/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updates)
@@ -174,7 +175,7 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
         if (!window.confirm('¿Estás seguro de que deseas eliminar este pedido? Esta acción no se puede deshacer.')) return;
 
         try {
-            await fetch(`http://${window.location.hostname}:8000/admin/orders/${id}`, {
+            await fetch(`${API_BASE_URL}/admin/orders/${id}`, {
                 method: 'DELETE'
             });
             setSelectedOrder(null);
@@ -198,13 +199,13 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
 
         try {
             if (editingProduct) {
-                await fetch(`http://${window.location.hostname}:8000/admin/products/${editingProduct.id}`, {
+                await fetch(`${API_BASE_URL}/admin/products/${editingProduct.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(productData)
                 });
             } else {
-                await fetch(`http://${window.location.hostname}:8000/admin/products`, {
+                await fetch(`${API_BASE_URL}/admin/products`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(productData)
@@ -621,7 +622,7 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                 {inventoryTab === 'history' && <InventoryHistoryView logs={inventoryHistory} />}
                                 {inventoryTab === 'report' && <InventoryReportView report={inventoryReport} />}
                                 {inventoryTab === 'bulk' && <InventoryBulkView products={products} onBulkUpdate={async (data) => {
-                                    await fetch(`http://${window.location.hostname}:8000/admin/inventory/bulk-load`, {
+                                    await fetch(`${API_BASE_URL}/admin/inventory/bulk-load`, {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify(data)
@@ -1213,7 +1214,7 @@ const OrderModal = ({ order, onClose, onUpdateStatus, onDelete }) => {
         formData.append('file', file);
 
         try {
-            const res = await fetch(`http://${window.location.hostname}:8000/admin/upload-image`, {
+            const res = await fetch(`${API_BASE_URL}/admin/upload-image`, {
                 method: 'POST',
                 body: formData
             });
@@ -1358,7 +1359,7 @@ const ProductModal = ({ onClose, onSubmit, editingProduct, categories }) => {
         formData.append('file', file);
 
         try {
-            const res = await fetch(`http://${window.location.hostname}:8000/admin/upload-image`, {
+            const res = await fetch(`${API_BASE_URL}/admin/upload-image`, {
                 method: 'POST',
                 body: formData
             });

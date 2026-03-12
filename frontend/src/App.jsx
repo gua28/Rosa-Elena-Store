@@ -8,6 +8,7 @@ import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
 import UserProfile from './components/UserProfile';
 import AdminDashboard from './components/AdminDashboard';
+import { API_BASE_URL } from './utils/api';
 import { Heart, Sparkles, User as UserIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -74,7 +75,7 @@ function App() {
   const fetchProducts = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`http://${window.location.hostname}:8000/products`);
+      const response = await fetch(`${API_BASE_URL}/products`);
       const data = await response.json();
       setProducts(data);
     } catch (error) {
@@ -86,7 +87,7 @@ function App() {
 
   const fetchSettings = async () => {
     try {
-      const response = await fetch(`http://${window.location.hostname}:8000/settings`);
+      const response = await fetch(`${API_BASE_URL}/settings`);
       const data = await response.json();
       setSettings(data);
     } catch (error) {

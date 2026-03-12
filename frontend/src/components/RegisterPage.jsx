@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Heart, Lock, User, ArrowLeft, Mail, Phone, MapPin } from 'lucide-react';
+import { API_BASE_URL } from '../utils/api';
 
 const RegisterPage = ({ onBack, onRegisterSuccess }) => {
     const [formData, setFormData] = useState({
@@ -24,7 +25,7 @@ const RegisterPage = ({ onBack, onRegisterSuccess }) => {
 
         setIsLoading(true);
         try {
-            const response = await fetch(`http://${window.location.hostname}:8000/register`, {
+            const response = await fetch(`${API_BASE_URL}/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

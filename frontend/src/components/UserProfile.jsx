@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Calendar, Clock, ArrowLeft, User as UserIcon, Phone, MapPin, Edit2, Save, X, Lock, Heart } from 'lucide-react';
 import { formatImageUrl } from '../utils/imageUrl';
+import { API_BASE_URL } from '../utils/api';
 
 const UserProfile = ({ user, favorites = [], onToggleFavorite, onBack, onUpdateUser }) => {
     const [orders, setOrders] = useState([]);
@@ -17,7 +18,7 @@ const UserProfile = ({ user, favorites = [], onToggleFavorite, onBack, onUpdateU
     useEffect(() => {
         const fetchOrders = async () => {
             try {
-                const response = await fetch(`http://${window.location.hostname}:8000/user/orders/${user.id}`);
+                const response = await fetch(`${API_BASE_URL}/user/orders/${user.id}`);
                 const data = await response.json();
                 setOrders(data);
             } catch (error) {
@@ -37,7 +38,7 @@ const UserProfile = ({ user, favorites = [], onToggleFavorite, onBack, onUpdateU
             const dataToUpdate = { name: editForm.name, phone: editForm.phone, address: editForm.address };
             if (editForm.password) dataToUpdate.password = editForm.password;
 
-            const response = await fetch(`http://${window.location.hostname}:8000/user/${user.id}`, {
+            const response = await fetch(`${API_BASE_URL}/user/${user.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dataToUpdate)

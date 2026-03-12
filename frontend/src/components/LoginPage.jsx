@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Heart, Lock, User, ArrowLeft } from 'lucide-react';
+import { API_BASE_URL } from '../utils/api';
 
 const LoginPage = ({ onBack, onLogin, onGoToRegister }) => {
     const [credentials, setCredentials] = useState({ email: '', password: '' });
@@ -12,7 +13,7 @@ const LoginPage = ({ onBack, onLogin, onGoToRegister }) => {
         setIsLoading(true);
 
         try {
-            const response = await fetch(`http://${window.location.hostname}:8000/login`, {
+            const response = await fetch(`${API_BASE_URL}/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(credentials)

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Trash2, ShoppingBag, Plus, Minus, CreditCard, Camera, CheckCircle, Copy, ExternalLink, QrCode } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatImageUrl } from '../utils/imageUrl';
+import { API_BASE_URL } from '../utils/api';
 
 const CartDrawer = ({ isOpen, onClose, cart, onRemove, user, onOrderComplete, settings }) => {
     const [step, setStep] = useState('cart'); // 'cart', 'payment', 'success'
@@ -25,7 +26,7 @@ const CartDrawer = ({ isOpen, onClose, cart, onRemove, user, onOrderComplete, se
 
     const handleCreateOrder = async () => {
         try {
-            const response = await fetch(`http://${window.location.hostname}:8000/order`, {
+            const response = await fetch(`${API_BASE_URL}/order`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -64,7 +65,7 @@ const CartDrawer = ({ isOpen, onClose, cart, onRemove, user, onOrderComplete, se
         const formData = new FormData();
         formData.append('file', file);
         try {
-            const res = await fetch(`http://${window.location.hostname}:8000/admin/upload-image`, {
+            const res = await fetch(`${API_BASE_URL}/admin/upload-image`, {
                 method: 'POST',
                 body: formData
             });
@@ -87,7 +88,7 @@ const CartDrawer = ({ isOpen, onClose, cart, onRemove, user, onOrderComplete, se
 
         setReportingPayment(true);
         try {
-            const response = await fetch(`http://${window.location.hostname}:8000/order/${orderId}/report-payment`, {
+            const response = await fetch(`${API_BASE_URL}/order/${orderId}/report-payment`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

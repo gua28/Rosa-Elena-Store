@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageCircle, X, Send, Heart, User, Sparkles, MessageSquare, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { API_BASE_URL } from '../utils/api';
 
 const Chatbot = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -15,7 +16,7 @@ const Chatbot = () => {
     useEffect(() => {
         const fetchProducts = async () => {
             try {
-                const response = await fetch(`http://${window.location.hostname}:8000/products`);
+                const response = await fetch(`${API_BASE_URL}/products`);
                 const data = await response.json();
                 setProducts(data);
             } catch (error) {
@@ -58,7 +59,7 @@ const Chatbot = () => {
                 content: m.text
             }));
 
-            const response = await fetch(`http://${window.location.hostname}:8000/chat`, {
+            const response = await fetch(`${API_BASE_URL}/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
