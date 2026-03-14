@@ -833,6 +833,7 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
 // --- Sales Analysis Components ---
 
 const SalesPieChart = ({ data, title, colors }) => {
+    const [hoveredProduct, setHoveredProduct] = useState(null);
     const total = data.reduce((sum, item) => sum + item.value, 0);
     
     // Always use 100 for percentage calculation relative to the segments shown
@@ -863,19 +864,24 @@ const SalesPieChart = ({ data, title, colors }) => {
                         currentRotation += percentage;
                         
                         return (
-                            <g key={i}>
+                            <g 
+                                key={i} 
+                                onMouseEnter={() => setHoveredProduct(item)}
+                                onMouseLeave={() => setHoveredProduct(null)}
+                                className="cursor-pointer"
+                            >
                                 <motion.circle
                                     cx="50" cy="50" r="15.9155"
                                     fill="transparent"
                                     stroke={colors[i % colors.length]}
-                                    strokeWidth="31.8"
+                                    strokeWidth={hoveredProduct?.name === item.name ? "34" : "31.8"}
                                     strokeDasharray={strokeDasharray}
                                     strokeDashoffset="0"
                                     transform={`rotate(${(rotation * 3.6)}, 50, 50)`}
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     transition={{ duration: 0.8, delay: i * 0.1 }}
-                                    className="transition-all duration-300 hover:opacity-90"
+                                    className="transition-all duration-300"
                                 />
                                 {/* White separator line */}
                                 {data.length > 1 && (
@@ -884,6 +890,7 @@ const SalesPieChart = ({ data, title, colors }) => {
                                         stroke="white" 
                                         strokeWidth="0.8"
                                         transform={`rotate(${(rotation * 3.6)}, 50, 50)`}
+                                        className="pointer-events-none"
                                     />
                                 )}
                             </g>
@@ -891,25 +898,40 @@ const SalesPieChart = ({ data, title, colors }) => {
                     })}
                 </svg>
                 
-                {/* Hollow center */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="bg-white rounded-full w-24 h-24 shadow-2xl border-4 border-gray-50 flex flex-col items-center justify-center">
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">TOTAL</span>
-                        <span className="text-4xl font-black text-gray-900 leading-none">{total}</span>
-                        <span className="text-[9px] font-bold text-gray-400">UNIDADES</span>
+                {/* Center Content: Switches between total and hovered product */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="bg-white rounded-full w-24 h-24 shadow-2xl border-4 border-gray-50 flex flex-col items-center justify-center p-2 text-center animate-in fade-in zoom-in duration-300">
+                        {hoveredProduct ? (
+                            <>
+                                <span className="text-[7px] font-black text-accent uppercase tracking-tighter mb-1 truncate w-full px-1">{hoveredProduct.name}</span>
+                                <span className="text-3xl font-black text-gray-900 leading-none">{hoveredProduct.value}</span>
+                                <span className="text-[8px] font-bold text-gray-400">UNIDADES</span>
+                            </>
+                        ) : (
+                            <>
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">TOTAL</span>
+                                <span className="text-4xl font-black text-gray-900 leading-none">{total}</span>
+                                <span className="text-[9px] font-bold text-gray-400">UNIDADES</span>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
 
             <div className="w-full space-y-2 mt-auto">
                 {data.map((item, i) => (
-                    <div key={i} className="flex items-center justify-between group">
+                    <div 
+                        key={i} 
+                        className={`flex items-center justify-between group p-1.5 rounded-xl transition-all ${hoveredProduct?.name === item.name ? 'bg-gray-50 shadow-sm' : ''}`}
+                        onMouseEnter={() => setHoveredProduct(item)}
+                        onMouseLeave={() => setHoveredProduct(null)}
+                    >
                         <div className="flex items-center gap-2">
                             <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: colors[i % colors.length] }}></div>
-                            <span className="text-[11px] font-bold text-gray-600 truncate max-w-[120px] group-hover:text-gray-900 transition-colors">{item.name}</span>
+                            <span className={`text-[11px] font-bold transition-colors truncate max-w-[120px] ${hoveredProduct?.name === item.name ? 'text-gray-900' : 'text-gray-600'}`}>{item.name}</span>
                         </div>
-                        <div className="bg-gray-50 px-2 py-1 rounded-lg border border-gray-100 min-w-[35px] text-center">
-                            <span className="text-xs font-black text-gray-900">{item.value}</span>
+                        <div className={`px-2 py-1 rounded-lg border min-w-[35px] text-center transition-all ${hoveredProduct?.name === item.name ? 'bg-accent text-white border-accent' : 'bg-gray-50 text-gray-900 border-gray-100'}`}>
+                            <span className="text-xs font-black">{item.value}</span>
                         </div>
                     </div>
                 ))}
