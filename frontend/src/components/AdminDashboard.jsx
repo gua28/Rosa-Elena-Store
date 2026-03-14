@@ -409,12 +409,12 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                                                 <SalesPieChart 
                                                                     title="Más Vendidos (Semana)" 
                                                                     data={mostSold} 
-                                                                    colorScale={['#10B981', '#34D399', '#6EE7B7', '#A7F3D0', '#D1FAE5']} 
+                                                                    colors={['#FF3366', '#33CCFF', '#00FFCC', '#FFCC33', '#CC33FF']} 
                                                                 />
                                                                 <SalesPieChart 
                                                                     title="Menos Vendidos (Semana)" 
                                                                     data={leastSold} 
-                                                                    colorScale={['#F59E0B', '#FBBF24', '#FCD34D', '#FDE68A', '#FEF3C7']} 
+                                                                    colors={['#CBD5E1', '#94A3B8', '#64748B', '#475569', '#334155']} 
                                                                 />
                                                             </>
                                                         );
@@ -549,12 +549,12 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                                                 <SalesPieChart 
                                                                     title="Más Vendidos (Mes)" 
                                                                     data={mostSold} 
-                                                                    colorScale={['#6366F1', '#818CF8', '#A5B4FC', '#C7D2FE', '#E0E7FF']} 
+                                                                    colors={['#4F46E5', '#3B82F6', '#22C55E', '#EAB308', '#EC4899']} 
                                                                 />
                                                                 <SalesPieChart 
                                                                     title="Menos Vendidos (Mes)" 
                                                                     data={leastSold} 
-                                                                    colorScale={['#F472B6', '#F9A8D4', '#FBCFE8', '#FCE4EC', '#FFF1F2']} 
+                                                                    colors={['#64748B', '#94A3B8', '#CBD5E1', '#E2E8F0', '#F1F5F9']} 
                                                                 />
                                                             </>
                                                         );
@@ -829,7 +829,7 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
 
 // --- Sales Analysis Components ---
 
-const SalesPieChart = ({ data, title, colorScale }) => {
+const SalesPieChart = ({ data, title, colors }) => {
     const total = data.reduce((sum, item) => sum + item.value, 0);
     let cumulativeValue = 0;
 
@@ -837,62 +837,84 @@ const SalesPieChart = ({ data, title, colorScale }) => {
         <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center opacity-60">
             <Package className="h-10 w-10 text-gray-300 mb-3" />
             <h4 className="text-sm font-black text-gray-500 uppercase tracking-widest">{title}</h4>
-            <p className="text-[10px] text-gray-400 font-bold mt-2">No hay suficientes datos</p>
+            <p className="text-[10px] text-gray-400 font-bold mt-2">Sin datos suficientes</p>
         </div>
     );
 
     return (
         <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col items-center relative group overflow-hidden"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col items-center relative overflow-hidden group"
         >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 rounded-full -mr-16 -mt-16 opacity-50 group-hover:scale-110 transition-transform duration-700"></div>
+            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-10 relative z-10">{title}</h4>
             
-            <h4 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-8 relative z-10">{title}</h4>
-            
-            <div className="relative w-48 h-48 mb-8 z-10">
-                <svg viewBox="0 0 32 32" className="w-full h-full -rotate-90 drop-shadow-xl">
+            <div className="relative w-56 h-56 mb-10 z-10 flex items-center justify-center">
+                <svg viewBox="0 0 32 32" className="w-full h-full -rotate-90 drop-shadow-2xl overflow-visible">
                     {data.map((item, i) => {
                         const sliceValue = (item.value / total) * 100;
-                        const strokeDasharray = `${sliceValue} 100`;
-                        const strokeDashoffset = -cumulativeValue;
+                        const dashArray = `${sliceValue} 100`;
+                        const dashOffset = -cumulativeValue;
                         cumulativeValue += sliceValue;
+                        
                         return (
                             <motion.circle
                                 key={i}
-                                cx="16" cy="16" r="16"
+                                cx="16" cy="16" r="15.9155"
                                 fill="transparent"
-                                stroke={colorScale[i % colorScale.length]}
+                                stroke={colors[i % colors.length]}
                                 strokeWidth="32"
-                                strokeDasharray={strokeDasharray}
-                                strokeDashoffset={strokeDashoffset}
-                                initial={{ opacity: 0, pathLength: 0 }}
-                                animate={{ opacity: 1, pathLength: 1 }}
-                                transition={{ duration: 1, delay: i * 0.1, ease: "easeOut" }}
-                                className="cursor-pointer hover:opacity-80 transition-opacity"
+                                strokeDasharray={dashArray}
+                                strokeDashoffset={dashOffset}
+                                strokeLinecap="flat"
+                                initial={{ pathLength: 0, opacity: 0 }}
+                                animate={{ pathLength: 1, opacity: 1 }}
+                                transition={{ duration: 1.5, delay: i * 0.2, ease: "easeOut" }}
+                                className="cursor-pointer hover:stroke-[34] transition-all duration-300"
+                                style={{ strokeDashoffset: dashOffset }}
+                            />
+                        );
+                    })}
+                    {/* Gaps between slices for better definition */}
+                    {data.length > 1 && data.map((item, i) => {
+                        cumulativeValue = 0; // Reset for lines
+                        let currentOffset = 0;
+                        for(let j=0; j<i; j++) currentOffset += (data[j].value / total) * 100;
+                        
+                        return (
+                            <line 
+                                key={`gap-${i}`}
+                                x1="16" y1="16" 
+                                x2="32" y2="16"
+                                stroke="white"
+                                strokeWidth="0.5"
+                                transform={`rotate(${(currentOffset * 3.6)}, 16, 16)`}
                             />
                         );
                     })}
                 </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <div className="bg-white w-24 h-24 rounded-full shadow-inner flex flex-col items-center justify-center border border-gray-50">
-                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter block leading-none">Ventas</span>
-                        <span className="text-3xl font-black text-gray-900">{total}</span>
+                
+                {/* Center content */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="bg-white/90 backdrop-blur-sm w-28 h-28 rounded-full shadow-xl flex flex-col items-center justify-center border-4 border-gray-50/50">
+                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block leading-none mb-1">Total</span>
+                        <span className="text-4xl font-black text-gray-900">{total}</span>
+                        <span className="text-[8px] font-bold text-gray-400 uppercase">Unidades</span>
                     </div>
                 </div>
             </div>
 
-            <div className="w-full space-y-3 z-10">
+            {/* List with improved number sizes */}
+            <div className="w-full space-y-4 z-10">
                 {data.map((item, i) => (
-                    <div key={i} className="flex items-center justify-between group/item">
-                        <div className="flex items-center gap-3">
-                            <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: colorScale[i % colorScale.length] }}></div>
-                            <span className="text-xs font-black text-gray-700 truncate max-w-[140px] group-hover/item:text-gray-900 transition-colors">{item.name}</span>
+                    <div key={i} className="flex items-center justify-between p-3 rounded-2xl hover:bg-gray-50 transition-all group/item">
+                        <div className="flex items-center gap-4">
+                            <div className="w-4 h-4 rounded-lg shadow-sm" style={{ backgroundColor: colors[i % colors.length] }}></div>
+                            <span className="text-xs font-black text-gray-600 truncate max-w-[150px] group-hover/item:text-gray-900">{item.name}</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs font-black text-gray-900">{item.value}</span>
-                            <span className="text-[10px] font-bold text-gray-300 uppercase">u.</span>
+                        <div className="flex items-end gap-1.5 bg-gray-100/50 px-3 py-1.5 rounded-xl border border-gray-100">
+                            <span className="text-sm font-black text-gray-900">{item.value}</span>
+                            <span className="text-[9px] font-bold text-gray-400 uppercase pb-0.5">u.</span>
                         </div>
                     </div>
                 ))}
