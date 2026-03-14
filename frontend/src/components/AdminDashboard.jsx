@@ -411,12 +411,12 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                                                 <SalesPieChart 
                                                                     title="Más Vendidos (Semana)" 
                                                                     data={mostSold} 
-                                                                    colors={['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444']} 
+                                                                    colors={['#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6']} 
                                                                 />
                                                                 <SalesPieChart 
                                                                     title="Menos Vendidos (Semana)" 
                                                                     data={leastSold} 
-                                                                    colors={['#94A3B8', '#64748B', '#475569', '#334155', '#1E293B']} 
+                                                                    colors={['#64748B', '#94A3B8', '#CBD5E1', '#E2E8F0', '#F8FAFC']} 
                                                                 />
                                                             </>
                                                         );
@@ -552,12 +552,12 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                                                 <SalesPieChart 
                                                                     title="Más Vendidos (Mes)" 
                                                                     data={mostSold} 
-                                                                    colors={['#6366F1', '#8B5CF6', '#EC4899', '#F43F5E', '#FB923C']} 
+                                                                    colors={['#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6']} 
                                                                 />
                                                                 <SalesPieChart 
                                                                     title="Menos Vendidos (Mes)" 
                                                                     data={leastSold} 
-                                                                    colors={['#94A3B8', '#64748B', '#475569', '#334155', '#1E293B']} 
+                                                                    colors={['#64748B', '#94A3B8', '#CBD5E1', '#E2E8F0', '#F8FAFC']} 
                                                                 />
                                                             </>
                                                         );
@@ -863,30 +863,40 @@ const SalesPieChart = ({ data, title, colors }) => {
                         currentRotation += percentage;
                         
                         return (
-                            <motion.circle
-                                key={i}
-                                cx="50" cy="50" r="15.9155"
-                                fill="transparent"
-                                stroke={colors[i % colors.length]}
-                                strokeWidth="20"
-                                strokeDasharray={strokeDasharray}
-                                strokeDashoffset="0"
-                                transform={`rotate(${(rotation * 3.6)}, 50, 50)`}
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ duration: 0.8, delay: i * 0.1 }}
-                                className="transition-all duration-300 hover:opacity-80"
-                            />
+                            <g key={i}>
+                                <motion.circle
+                                    cx="50" cy="50" r="15.9155"
+                                    fill="transparent"
+                                    stroke={colors[i % colors.length]}
+                                    strokeWidth="31.8"
+                                    strokeDasharray={strokeDasharray}
+                                    strokeDashoffset="0"
+                                    transform={`rotate(${(rotation * 3.6)}, 50, 50)`}
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    transition={{ duration: 0.8, delay: i * 0.1 }}
+                                    className="transition-all duration-300 hover:opacity-90"
+                                />
+                                {/* White separator line */}
+                                {data.length > 1 && (
+                                    <line 
+                                        x1="50" y1="50" x2="50" y2="18.1" 
+                                        stroke="white" 
+                                        strokeWidth="0.8"
+                                        transform={`rotate(${(rotation * 3.6)}, 50, 50)`}
+                                    />
+                                )}
+                            </g>
                         );
                     })}
                 </svg>
                 
-                {/* Hollow center for a modern Donut look that feels more balanced */}
+                {/* Hollow center */}
                 <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="bg-white rounded-full w-24 h-24 shadow-inner border border-gray-50 flex flex-col items-center justify-center">
-                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter">TOTAL</span>
-                        <span className="text-2xl font-black text-gray-900 leading-none">{total}</span>
-                        <span className="text-[8px] font-bold text-gray-400">UND</span>
+                    <div className="bg-white rounded-full w-24 h-24 shadow-2xl border-4 border-gray-50 flex flex-col items-center justify-center">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">TOTAL</span>
+                        <span className="text-4xl font-black text-gray-900 leading-none">{total}</span>
+                        <span className="text-[9px] font-bold text-gray-400">UNIDADES</span>
                     </div>
                 </div>
             </div>
