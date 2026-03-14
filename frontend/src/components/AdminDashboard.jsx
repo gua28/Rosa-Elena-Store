@@ -380,10 +380,12 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                                     })}
                                                 </div>
 
-                                                <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mt-8 pt-4 border-t border-gray-100">Distribución de Productos</h4>
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                                     {(() => {
                                                         const timeframeProducts = {};
+                                                        // Initialize all products with 0
+                                                        products.forEach(p => timeframeProducts[p.name] = 0);
+                                                        
                                                         const now = new Date();
                                                         const weekDate = new Date();
                                                         weekDate.setDate(now.getDate() - (now.getDay() === 0 ? 6 : now.getDay() - 1));
@@ -401,20 +403,20 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                                             .map(([name, value]) => ({ name, value }))
                                                             .sort((a, b) => b.value - a.value);
 
-                                                        const mostSold = sorted.slice(0, 5);
-                                                        const leastSold = sorted.length > 3 ? [...sorted].reverse().slice(0, 5) : [];
+                                                        const mostSold = sorted.filter(p => p.value > 0).slice(0, 5);
+                                                        const leastSold = sorted.slice(-5).reverse();
 
                                                         return (
                                                             <>
                                                                 <SalesPieChart 
                                                                     title="Más Vendidos (Semana)" 
                                                                     data={mostSold} 
-                                                                    colors={['#FF3366', '#33CCFF', '#00FFCC', '#FFCC33', '#CC33FF']} 
+                                                                    colors={['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444']} 
                                                                 />
                                                                 <SalesPieChart 
                                                                     title="Menos Vendidos (Semana)" 
                                                                     data={leastSold} 
-                                                                    colors={['#CBD5E1', '#94A3B8', '#64748B', '#475569', '#334155']} 
+                                                                    colors={['#94A3B8', '#64748B', '#475569', '#334155', '#1E293B']} 
                                                                 />
                                                             </>
                                                         );
@@ -521,10 +523,11 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                                         )}
                                                 </div>
 
-                                                <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mt-8 pt-4 border-t border-gray-100">Distribución de Productos</h4>
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pb-8">
                                                     {(() => {
                                                         const timeframeProducts = {};
+                                                        // Initialize all products with 0
+                                                        products.forEach(p => timeframeProducts[p.name] = 0);
                                                         
                                                         stats.recentOrders
                                                             .filter(o => {
@@ -541,20 +544,20 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                                             .map(([name, value]) => ({ name, value }))
                                                             .sort((a, b) => b.value - a.value);
 
-                                                        const mostSold = sorted.slice(0, 5);
-                                                        const leastSold = sorted.length > 3 ? [...sorted].reverse().slice(0, 5) : [];
+                                                        const mostSold = sorted.filter(p => p.value > 0).slice(0, 5);
+                                                        const leastSold = sorted.slice(-5).reverse();
 
                                                         return (
                                                             <>
                                                                 <SalesPieChart 
                                                                     title="Más Vendidos (Mes)" 
                                                                     data={mostSold} 
-                                                                    colors={['#4F46E5', '#3B82F6', '#22C55E', '#EAB308', '#EC4899']} 
+                                                                    colors={['#6366F1', '#8B5CF6', '#EC4899', '#F43F5E', '#FB923C']} 
                                                                 />
                                                                 <SalesPieChart 
                                                                     title="Menos Vendidos (Mes)" 
                                                                     data={leastSold} 
-                                                                    colors={['#64748B', '#94A3B8', '#CBD5E1', '#E2E8F0', '#F1F5F9']} 
+                                                                    colors={['#94A3B8', '#64748B', '#475569', '#334155', '#1E293B']} 
                                                                 />
                                                             </>
                                                         );
@@ -831,90 +834,72 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
 
 const SalesPieChart = ({ data, title, colors }) => {
     const total = data.reduce((sum, item) => sum + item.value, 0);
-    let cumulativeValue = 0;
-
+    
+    // Always use 100 for percentage calculation relative to the segments shown
     if (total === 0 || !data.length) return (
-        <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center opacity-60">
+        <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center opacity-60 h-full">
             <Package className="h-10 w-10 text-gray-300 mb-3" />
-            <h4 className="text-sm font-black text-gray-500 uppercase tracking-widest">{title}</h4>
-            <p className="text-[10px] text-gray-400 font-bold mt-2">Sin datos suficientes</p>
+            <h4 className="text-xs font-black text-gray-500 uppercase tracking-widest">{title}</h4>
+            <p className="text-[10px] text-gray-400 font-bold mt-2">Sin ventas registradas</p>
         </div>
     );
 
+    let currentRotation = 0;
+
     return (
         <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col items-center relative overflow-hidden group"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col items-center h-full"
         >
-            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-10 relative z-10">{title}</h4>
+            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-8 text-center">{title}</h4>
             
-            <div className="relative w-56 h-56 mb-10 z-10 flex items-center justify-center">
-                <svg viewBox="0 0 32 32" className="w-full h-full -rotate-90 drop-shadow-2xl overflow-visible">
+            <div className="relative w-48 h-48 mb-8">
+                <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
                     {data.map((item, i) => {
-                        const sliceValue = (item.value / total) * 100;
-                        const dashArray = `${sliceValue} 100`;
-                        const dashOffset = -cumulativeValue;
-                        cumulativeValue += sliceValue;
+                        const percentage = (item.value / total) * 100;
+                        const strokeDasharray = `${percentage} ${100 - percentage}`;
+                        const rotation = currentRotation;
+                        currentRotation += percentage;
                         
                         return (
                             <motion.circle
                                 key={i}
-                                cx="16" cy="16" r="15.9155"
+                                cx="50" cy="50" r="15.9155"
                                 fill="transparent"
                                 stroke={colors[i % colors.length]}
-                                strokeWidth="32"
-                                strokeDasharray={dashArray}
-                                strokeDashoffset={dashOffset}
-                                strokeLinecap="flat"
-                                initial={{ pathLength: 0, opacity: 0 }}
-                                animate={{ pathLength: 1, opacity: 1 }}
-                                transition={{ duration: 1.5, delay: i * 0.2, ease: "easeOut" }}
-                                className="cursor-pointer hover:stroke-[34] transition-all duration-300"
-                                style={{ strokeDashoffset: dashOffset }}
-                            />
-                        );
-                    })}
-                    {/* Gaps between slices for better definition */}
-                    {data.length > 1 && data.map((item, i) => {
-                        cumulativeValue = 0; // Reset for lines
-                        let currentOffset = 0;
-                        for(let j=0; j<i; j++) currentOffset += (data[j].value / total) * 100;
-                        
-                        return (
-                            <line 
-                                key={`gap-${i}`}
-                                x1="16" y1="16" 
-                                x2="32" y2="16"
-                                stroke="white"
-                                strokeWidth="0.5"
-                                transform={`rotate(${(currentOffset * 3.6)}, 16, 16)`}
+                                strokeWidth="20"
+                                strokeDasharray={strokeDasharray}
+                                strokeDashoffset="0"
+                                transform={`rotate(${(rotation * 3.6)}, 50, 50)`}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ duration: 0.8, delay: i * 0.1 }}
+                                className="transition-all duration-300 hover:opacity-80"
                             />
                         );
                     })}
                 </svg>
                 
-                {/* Center content */}
+                {/* Hollow center for a modern Donut look that feels more balanced */}
                 <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="bg-white/90 backdrop-blur-sm w-28 h-28 rounded-full shadow-xl flex flex-col items-center justify-center border-4 border-gray-50/50">
-                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block leading-none mb-1">Total</span>
-                        <span className="text-4xl font-black text-gray-900">{total}</span>
-                        <span className="text-[8px] font-bold text-gray-400 uppercase">Unidades</span>
+                    <div className="bg-white rounded-full w-24 h-24 shadow-inner border border-gray-50 flex flex-col items-center justify-center">
+                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter">TOTAL</span>
+                        <span className="text-2xl font-black text-gray-900 leading-none">{total}</span>
+                        <span className="text-[8px] font-bold text-gray-400">UND</span>
                     </div>
                 </div>
             </div>
 
-            {/* List with improved number sizes */}
-            <div className="w-full space-y-4 z-10">
+            <div className="w-full space-y-2 mt-auto">
                 {data.map((item, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-2xl hover:bg-gray-50 transition-all group/item">
-                        <div className="flex items-center gap-4">
-                            <div className="w-4 h-4 rounded-lg shadow-sm" style={{ backgroundColor: colors[i % colors.length] }}></div>
-                            <span className="text-xs font-black text-gray-600 truncate max-w-[150px] group-hover/item:text-gray-900">{item.name}</span>
+                    <div key={i} className="flex items-center justify-between group">
+                        <div className="flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: colors[i % colors.length] }}></div>
+                            <span className="text-[11px] font-bold text-gray-600 truncate max-w-[120px] group-hover:text-gray-900 transition-colors">{item.name}</span>
                         </div>
-                        <div className="flex items-end gap-1.5 bg-gray-100/50 px-3 py-1.5 rounded-xl border border-gray-100">
-                            <span className="text-sm font-black text-gray-900">{item.value}</span>
-                            <span className="text-[9px] font-bold text-gray-400 uppercase pb-0.5">u.</span>
+                        <div className="bg-gray-50 px-2 py-1 rounded-lg border border-gray-100 min-w-[35px] text-center">
+                            <span className="text-xs font-black text-gray-900">{item.value}</span>
                         </div>
                     </div>
                 ))}
