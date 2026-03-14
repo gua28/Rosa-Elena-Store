@@ -352,7 +352,7 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                                 <div className="space-y-2">
                                                     {[...Array(7)].map((_, i) => {
                                                         const date = new Date();
-                                                        date.setDate(date.getDate() - date.getDay() + i);
+                                                        date.setDate(date.getDate() - (date.getDay() === 0 ? 6 : date.getDay() - 1) + i);
                                                         const dayName = date.toLocaleDateString('es-VE', { weekday: 'long' });
                                                         const dateStr = date.toLocaleDateString('en-CA'); // YYYY-MM-DD
                                                         const dayTotal = (stats.recentOrders || [])
@@ -378,6 +378,47 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                                             </button>
                                                         );
                                                     })}
+                                                </div>
+
+                                                <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mt-8 pt-4 border-t border-gray-100">Distribución de Productos</h4>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                                    {(() => {
+                                                        const timeframeProducts = {};
+                                                        const now = new Date();
+                                                        const weekDate = new Date();
+                                                        weekDate.setDate(now.getDate() - (now.getDay() === 0 ? 6 : now.getDay() - 1));
+                                                        const weekStartStr = weekDate.toLocaleDateString('en-CA');
+                                                        
+                                                        stats.recentOrders
+                                                            .filter(o => o.status === 'completado' && o.timestamp >= weekStartStr)
+                                                            .forEach(order => {
+                                                                order.items.forEach(item => {
+                                                                    timeframeProducts[item.name] = (timeframeProducts[item.name] || 0) + item.quantity;
+                                                                });
+                                                            });
+
+                                                        const sorted = Object.entries(timeframeProducts)
+                                                            .map(([name, value]) => ({ name, value }))
+                                                            .sort((a, b) => b.value - a.value);
+
+                                                        const mostSold = sorted.slice(0, 5);
+                                                        const leastSold = sorted.length > 3 ? [...sorted].reverse().slice(0, 5) : [];
+
+                                                        return (
+                                                            <>
+                                                                <SalesPieChart 
+                                                                    title="Más Vendidos (Semana)" 
+                                                                    data={mostSold} 
+                                                                    colorScale={['#10B981', '#34D399', '#6EE7B7', '#A7F3D0', '#D1FAE5']} 
+                                                                />
+                                                                <SalesPieChart 
+                                                                    title="Menos Vendidos (Semana)" 
+                                                                    data={leastSold} 
+                                                                    colorScale={['#F59E0B', '#FBBF24', '#FCD34D', '#FDE68A', '#FEF3C7']} 
+                                                                />
+                                                            </>
+                                                        );
+                                                    })()}
                                                 </div>
                                             </div>
                                         )}
@@ -478,6 +519,46 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                                     }).length === 0 && (
                                                             <p className="text-center py-10 text-gray-400 italic">No hay datos para este periodo</p>
                                                         )}
+                                                </div>
+
+                                                <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mt-8 pt-4 border-t border-gray-100">Distribución de Productos</h4>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pb-8">
+                                                    {(() => {
+                                                        const timeframeProducts = {};
+                                                        
+                                                        stats.recentOrders
+                                                            .filter(o => {
+                                                                const d = new Date(o.timestamp);
+                                                                return o.status === 'completado' && d.getMonth() === viewingMonth && d.getFullYear() === viewingYear;
+                                                            })
+                                                            .forEach(order => {
+                                                                order.items.forEach(item => {
+                                                                    timeframeProducts[item.name] = (timeframeProducts[item.name] || 0) + item.quantity;
+                                                                });
+                                                            });
+
+                                                        const sorted = Object.entries(timeframeProducts)
+                                                            .map(([name, value]) => ({ name, value }))
+                                                            .sort((a, b) => b.value - a.value);
+
+                                                        const mostSold = sorted.slice(0, 5);
+                                                        const leastSold = sorted.length > 3 ? [...sorted].reverse().slice(0, 5) : [];
+
+                                                        return (
+                                                            <>
+                                                                <SalesPieChart 
+                                                                    title="Más Vendidos (Mes)" 
+                                                                    data={mostSold} 
+                                                                    colorScale={['#6366F1', '#818CF8', '#A5B4FC', '#C7D2FE', '#E0E7FF']} 
+                                                                />
+                                                                <SalesPieChart 
+                                                                    title="Menos Vendidos (Mes)" 
+                                                                    data={leastSold} 
+                                                                    colorScale={['#F472B6', '#F9A8D4', '#FBCFE8', '#FCE4EC', '#FFF1F2']} 
+                                                                />
+                                                            </>
+                                                        );
+                                                    })()}
                                                 </div>
                                             </div>
                                         )}
@@ -743,6 +824,80 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                 )}
             </AnimatePresence>
         </div>
+    );
+};
+
+// --- Sales Analysis Components ---
+
+const SalesPieChart = ({ data, title, colorScale }) => {
+    const total = data.reduce((sum, item) => sum + item.value, 0);
+    let cumulativeValue = 0;
+
+    if (total === 0 || !data.length) return (
+        <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center opacity-60">
+            <Package className="h-10 w-10 text-gray-300 mb-3" />
+            <h4 className="text-sm font-black text-gray-500 uppercase tracking-widest">{title}</h4>
+            <p className="text-[10px] text-gray-400 font-bold mt-2">No hay suficientes datos</p>
+        </div>
+    );
+
+    return (
+        <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col items-center relative group overflow-hidden"
+        >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 rounded-full -mr-16 -mt-16 opacity-50 group-hover:scale-110 transition-transform duration-700"></div>
+            
+            <h4 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-8 relative z-10">{title}</h4>
+            
+            <div className="relative w-48 h-48 mb-8 z-10">
+                <svg viewBox="0 0 32 32" className="w-full h-full -rotate-90 drop-shadow-xl">
+                    {data.map((item, i) => {
+                        const sliceValue = (item.value / total) * 100;
+                        const strokeDasharray = `${sliceValue} 100`;
+                        const strokeDashoffset = -cumulativeValue;
+                        cumulativeValue += sliceValue;
+                        return (
+                            <motion.circle
+                                key={i}
+                                cx="16" cy="16" r="16"
+                                fill="transparent"
+                                stroke={colorScale[i % colorScale.length]}
+                                strokeWidth="32"
+                                strokeDasharray={strokeDasharray}
+                                strokeDashoffset={strokeDashoffset}
+                                initial={{ opacity: 0, pathLength: 0 }}
+                                animate={{ opacity: 1, pathLength: 1 }}
+                                transition={{ duration: 1, delay: i * 0.1, ease: "easeOut" }}
+                                className="cursor-pointer hover:opacity-80 transition-opacity"
+                            />
+                        );
+                    })}
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <div className="bg-white w-24 h-24 rounded-full shadow-inner flex flex-col items-center justify-center border border-gray-50">
+                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter block leading-none">Ventas</span>
+                        <span className="text-3xl font-black text-gray-900">{total}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div className="w-full space-y-3 z-10">
+                {data.map((item, i) => (
+                    <div key={i} className="flex items-center justify-between group/item">
+                        <div className="flex items-center gap-3">
+                            <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: colorScale[i % colorScale.length] }}></div>
+                            <span className="text-xs font-black text-gray-700 truncate max-w-[140px] group-hover/item:text-gray-900 transition-colors">{item.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-black text-gray-900">{item.value}</span>
+                            <span className="text-[10px] font-bold text-gray-300 uppercase">u.</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </motion.div>
     );
 };
 
