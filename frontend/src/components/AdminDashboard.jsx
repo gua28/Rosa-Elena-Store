@@ -8,6 +8,9 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatImageUrl } from '../utils/imageUrl';
 import { API_BASE_URL } from '../utils/api';
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 
 const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => {
     const isTechnicalAdmin = user?.role?.toLowerCase() === 'admin';
@@ -458,7 +461,18 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                         {salesSubView === 'monthly' && (
                                             <div className="space-y-6">
                                                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                                                    <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight">Reporte Mensual</h4>
+                                                    <div className="flex items-center gap-4">
+                                                        <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight">Reporte Mensual</h4>
+                                                        <ExportButtons 
+                                                            type="sales" 
+                                                            title={`Reporte de Ventas - ${['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][viewingMonth]} ${viewingYear}`}
+                                                            filename={`Ventas_${viewingMonth + 1}_${viewingYear}`}
+                                                            data={stats.recentOrders.filter(o => {
+                                                                const d = new Date(o.timestamp);
+                                                                return o.status === 'completado' && d.getMonth() === viewingMonth && d.getFullYear() === viewingYear;
+                                                            })}
+                                                        />
+                                                    </div>
                                                     <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-xl">
                                                         <select
                                                             value={viewingMonth}
@@ -940,6 +954,87 @@ const SalesPieChart = ({ data, title, colors }) => {
     );
 };
 
+const ExportButtons = ({ data, filename, title, type }) => {
+    const handleExcel = () => {
+        let exportData = [];
+        if (type === 'inventory') {
+            exportData = data.map(p => ({
+                'Nombre': p.name,
+                'Categoría': p.category,
+                'Precio ($)': p.price,
+                'Stock': p.stock,
+                'Descripción': p.description || ''
+            }));
+        } else if (type === 'sales') {
+            exportData = data.map(o => ({
+                'ID': o.id,
+                'Cliente': o.customer_name,
+                'Fecha': new Date(o.timestamp).toLocaleString(),
+                'Total ($)': o.total,
+                'Estado': o.status
+            }));
+        }
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Datos");
+        XLSX.writeFile(wb, `${filename}.xlsx`);
+    };
+
+    const handlePDF = () => {
+        const doc = new jsPDF();
+        doc.setFontSize(18);
+        doc.text(title, 14, 22);
+        doc.setFontSize(11);
+        doc.setTextColor(100);
+        doc.text(`Generado el: ${new Date().toLocaleString()}`, 14, 30);
+
+        let headings = [];
+        let rows = [];
+
+        if (type === 'inventory') {
+            headings = ['Nombre', 'Categoría', 'Precio ($)', 'Stock'];
+            rows = data.map(p => [p.name, p.category, `$${p.price.toFixed(2)}`, p.stock]);
+        } else if (type === 'sales') {
+            headings = ['Fecha', 'Cliente', 'Total ($)', 'Estado'];
+            rows = data.map(o => [
+                new Date(o.timestamp).toLocaleDateString(),
+                o.customer_name,
+                `$${o.total.toFixed(2)}`,
+                o.status
+            ]);
+        }
+
+        doc.autoTable({
+            head: [headings],
+            body: rows,
+            startY: 40,
+            styles: { fontSize: 9 },
+            headStyles: { fillColor: [79, 70, 229] } // Accent color-ish
+        });
+
+        doc.save(`${filename}.pdf`);
+    };
+
+    return (
+        <div className="flex gap-2">
+            <button 
+                onClick={handleExcel}
+                title="Exportar a Excel"
+                className="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-100 hover:bg-emerald-100 transition-all shadow-sm"
+            >
+                <Database className="h-3 w-3" /> Excel
+            </button>
+            <button 
+                onClick={handlePDF}
+                title="Exportar a PDF"
+                className="flex items-center gap-2 bg-red-50 text-red-700 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-red-100 hover:bg-red-100 transition-all shadow-sm"
+            >
+                <FileText className="h-3 w-3" /> PDF
+            </button>
+        </div>
+    );
+};
+
 // --- Sub-components ---
 
 const SidebarItem = ({ icon, label, active, onClick }) => (
@@ -1094,7 +1189,15 @@ const StockInput = ({ initialStock, onUpdate }) => {
 const InventoryView = ({ products, onUpdateStock, onAdd, onEdit }) => (
     <div className="space-y-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <h2 className="text-2xl md:text-3xl font-black text-primary">Gestión de Inventario</h2>
+            <div className="flex items-center gap-4">
+                <h2 className="text-2xl md:text-3xl font-black text-primary">Gestión de Inventario</h2>
+                <ExportButtons 
+                    type="inventory" 
+                    title="Reporte de Inventario Completo" 
+                    filename="Inventario_Rosa_Elena" 
+                    data={products} 
+                />
+            </div>
             <button onClick={onAdd} className="w-full sm:w-auto bg-accent hover:bg-accent-dark text-white px-6 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-accent/20 transition-all">
                 <Plus className="h-5 w-5" /> Nuevo Producto
             </button>

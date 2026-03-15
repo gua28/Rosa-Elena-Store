@@ -1,7 +1,7 @@
 import psycopg2
 import sys
 
-dsn = "postgresql://postgres.ghjvojncdugaifoxpwex:ELENITAROSA9912@aws-1-us-east-1.pooler.supabase.com:6543/postgres"
+dsn = "postgresql://postgres.ghjvojncdugaifoxpwex:RosaElena_Tienda_2025*@aws-1-us-east-1.pooler.supabase.com:6543/postgres"
 try:
     conn = psycopg2.connect(dsn)
     print("SUCCESS with DSN string!")

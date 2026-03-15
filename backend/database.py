@@ -6,26 +6,21 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Get database URL from environment or fallback to SQLite
-# Get database URL from environment or fallback to SQLite
+# Prioriza la base de datos local creaciones.db
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./creaciones.db")
 
-# SQLAlchemy requires 'postgresql://' instead of 'postgres://' which some providers use
+# Ajuste para compatibilidad con distintos proveedores de Postgres
 if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
     SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# SQLite needs 'check_same_thread' but Postgres doesn't
+# Configuración específica para SQLite
 connect_args = {}
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
 
-# Log the DB URL (safely masked) for debugging
-masked_url = SQLALCHEMY_DATABASE_URL
-if "@" in SQLALCHEMY_DATABASE_URL:
-    parts = SQLALCHEMY_DATABASE_URL.split("@")
-    host_part = parts[1]
-    masked_url = f"postgresql://****@{host_part}"
-print(f"DEBUG: Initialized DB logic. Using: {masked_url}")
+# Log de depuración para confirmar qué base de datos se está cargando
+db_type = "SQLITE LOCAL" if "sqlite" in SQLALCHEMY_DATABASE_URL else "POSTGRES NUBE"
+print(f"DEBUG: Conectado a base de datos: {db_type}")
 
 try:
     engine = create_engine(
@@ -35,7 +30,7 @@ try:
     )
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 except Exception as e:
-    print(f"ERROR: Could not create database engine: {e}")
+    print(f"ERROR: No se pudo conectar a la base de datos: {e}")
     raise e
 
 Base = declarative_base()
