@@ -9,8 +9,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatImageUrl } from '../utils/imageUrl';
 import { API_BASE_URL } from '../utils/api';
 import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => {
     const isTechnicalAdmin = user?.role?.toLowerCase() === 'admin';
@@ -981,38 +981,43 @@ const ExportButtons = ({ data, filename, title, type }) => {
     };
 
     const handlePDF = () => {
-        const doc = new jsPDF();
-        doc.setFontSize(18);
-        doc.text(title, 14, 22);
-        doc.setFontSize(11);
-        doc.setTextColor(100);
-        doc.text(`Generado el: ${new Date().toLocaleString()}`, 14, 30);
+        try {
+            const doc = new jsPDF();
+            doc.setFontSize(18);
+            doc.text(title, 14, 22);
+            doc.setFontSize(11);
+            doc.setTextColor(100);
+            doc.text(`Generado el: ${new Date().toLocaleString()}`, 14, 30);
 
-        let headings = [];
-        let rows = [];
+            let headings = [];
+            let rows = [];
 
-        if (type === 'inventory') {
-            headings = ['Nombre', 'Categoría', 'Precio ($)', 'Stock'];
-            rows = data.map(p => [p.name, p.category, `$${p.price.toFixed(2)}`, p.stock]);
-        } else if (type === 'sales') {
-            headings = ['Fecha', 'Cliente', 'Total ($)', 'Estado'];
-            rows = data.map(o => [
-                new Date(o.timestamp).toLocaleDateString(),
-                o.customer_name,
-                `$${o.total.toFixed(2)}`,
-                o.status
-            ]);
+            if (type === 'inventory') {
+                headings = ['Nombre', 'Categoría', 'Precio ($)', 'Stock'];
+                rows = data.map(p => [p.name, p.category, `$${p.price.toFixed(2)}`, p.stock]);
+            } else if (type === 'sales') {
+                headings = ['Fecha', 'Cliente', 'Total ($)', 'Estado'];
+                rows = data.map(o => [
+                    new Date(o.timestamp).toLocaleDateString(),
+                    o.customer_name,
+                    `$${o.total.toFixed(2)}`,
+                    o.status
+                ]);
+            }
+
+            autoTable(doc, {
+                head: [headings],
+                body: rows,
+                startY: 40,
+                styles: { fontSize: 9 },
+                headStyles: { fillColor: [79, 70, 229] } // Accent color-ish
+            });
+
+            doc.save(`${filename}.pdf`);
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+            alert("Hubo un error al generar el PDF. Por favor, intente de nuevo.");
         }
-
-        doc.autoTable({
-            head: [headings],
-            body: rows,
-            startY: 40,
-            styles: { fontSize: 9 },
-            headStyles: { fillColor: [79, 70, 229] } // Accent color-ish
-        });
-
-        doc.save(`${filename}.pdf`);
     };
 
     return (
