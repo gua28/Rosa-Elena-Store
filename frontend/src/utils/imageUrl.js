@@ -1,16 +1,18 @@
+const SUPABASE_URL = 'https://ghjvojncdugaifoxpwex.supabase.co';
+const BUCKET_NAME = 'products'; // Assuming your bucket is named 'products'
+
 export const formatImageUrl = (url) => {
-    if (!url) return '';
-    const backendBase = `http://${window.location.hostname}:8000`;
-
-    // Handle relative paths from backend
-    if (url.startsWith('/uploads/')) {
-        return `${backendBase}${url}`;
+    if (!url) return 'https://via.placeholder.com/300?text=No+Image';
+    
+    // If it's already a full URL (like Supabase or external)
+    if (url.startsWith('https://')) return url;
+    
+    // Extract filename if it contains old paths like '/uploads/' or 'http://127.0.0.1:8000/uploads/'
+    let fileName = url;
+    if (url.includes('/uploads/')) {
+        fileName = url.split('/uploads/').pop();
     }
-
-    // Handle hardcoded localhost/127.0.0.1 paths
-    if (url.includes('127.0.0.1:8000') || url.includes('localhost:8000')) {
-        return url.replace(/http:\/\/(127\.0\.0\.1|localhost):8000/, backendBase);
-    }
-
-    return url;
+    
+    // Return the Supabase public storage URL
+    return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/${fileName}`;
 };

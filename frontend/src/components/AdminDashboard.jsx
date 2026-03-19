@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatImageUrl } from '../utils/imageUrl';
+import { supabase } from '../utils/supabaseClient';
 import { API_BASE_URL } from '../utils/api';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -89,13 +90,22 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
         setIsLoading(true);
         try {
             // Stage 1: Critical UI Data
-            const [statsRes, prodRes] = await Promise.all([
-                fetch(`${API_BASE_URL}/admin/stats`),
-                fetch(`${API_BASE_URL}/products`)
-            ]);
+            const { data: prodData, error: prodError } = await supabase.from('products').select('*').order('id');
+            if (prodError) throw prodError;
 
-            const statsData = await statsRes.json().catch(() => ({}));
-            const prodData = await prodRes.json().catch(() => []);
+            const { data: ordersData, error: ordersError } = await supabase.from('orders').select('*').order('timestamp', { ascending: false });
+            if (ordersError) throw ordersError;
+
+            // Mocking stats normally provided by backend
+            const completedOrders = ordersData.filter(o => o.status === 'completado');
+            const totalSalesSum = completedOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+            
+            const statsData = {
+                totalSales: `$${totalSalesSum.toFixed(2)}`,
+                newOrders: ordersData.filter(o => o.status === 'procesando').length.toString(),
+                activeProducts: prodData.length.toString(),
+                recentOrders: ordersData.map(o => ({ ...o, items: JSON.parse(o.items_json || '[]') }))
+            };
 
             // Compute alerts directly from the products list
             const lowStockNames = prodData.filter(p => p.stock > 0 && p.stock <= 5).map(p => p.name);
@@ -110,15 +120,24 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
             setIsLoading(false); // UI is now usable
 
             // Stage 2: Background Data (Inventory)
-            const [historyRes, reportRes] = await Promise.all([
-                fetch(`${API_BASE_URL}/admin/inventory/history`),
-                fetch(`${API_BASE_URL}/admin/inventory/report`)
-            ]);
+            const { data: historyData, error: historyError } = await supabase.from('inventory_logs').select('*').order('timestamp', { ascending: false });
+            if (historyError) throw historyError;
 
-            const historyData = await historyRes.json().catch(() => []);
-            const reportData = await reportRes.json().catch(() => null);
+            // Simple report calculation logic that was in backend
+            const reportData = {
+                totalValue: prodData.reduce((sum, p) => sum + (p.price * p.stock), 0),
+                totalItems: prodData.reduce((sum, p) => sum + p.stock, 0),
+                categorySummary: prodData.reduce((acc, p) => {
+                    if (!acc[p.category]) acc[p.category] = { count: 0, value: 0 };
+                    acc[p.category].count += p.stock;
+                    acc[p.category].value += (p.price * p.stock);
+                    return acc;
+                }, {}),
+                lowStock: lowStockNames,
+                outOfStock: outStockNames
+            };
 
-            setInventoryHistory(Array.isArray(historyData) ? historyData : []);
+            setInventoryHistory(historyData || []);
             setInventoryReport(reportData);
         } catch (error) {
             console.error('Error fetching admin data:', error);
@@ -129,19 +148,18 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
     const handleSaveConfig = async () => {
         setIsSavingConfig(true);
         try {
-            const res = await fetch(`${API_BASE_URL}/admin/settings`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(configData)
-            });
-            if (res.ok) {
+            const updates = Object.entries(configData).map(([key, value]) => ({ key, value }));
+            const { error } = await supabase.from('settings').upsert(updates);
+            
+            if (!error) {
                 alert('Configuración guardada exitosamente.');
                 fetchSettings();
             } else {
-                alert('Error al guardar la configuración. Por favor, intente de nuevo.');
+                throw error;
             }
         } catch (err) {
             console.error('Save config error:', err);
+            alert('Error al guardar la configuración.');
         } finally {
             setIsSavingConfig(false);
         }
@@ -149,11 +167,22 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
 
     const handleUpdateStock = async (id, newStock) => {
         try {
-            await fetch(`${API_BASE_URL}/admin/products/${id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ stock: newStock })
-            });
+            const product = products.find(p => p.id === id);
+            const prevStock = product?.stock || 0;
+
+            const { error: updateError } = await supabase.from('products').update({ stock: newStock }).eq('id', id);
+            if (updateError) throw updateError;
+
+            // Log the change
+            await supabase.from('inventory_logs').insert([{
+                product_id: id,
+                change_type: 'manual',
+                quantity_changed: newStock - prevStock,
+                previous_stock: prevStock,
+                new_stock: newStock,
+                timestamp: new Date().toISOString()
+            }]);
+
             fetchData();
         } catch (error) {
             console.error('Error updating stock:', error);
@@ -162,11 +191,8 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
 
     const handleUpdateOrderStatus = async (id, updates) => {
         try {
-            await fetch(`${API_BASE_URL}/admin/orders/${id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updates)
-            });
+            const { error } = await supabase.from('orders').update(updates).eq('id', id);
+            if (error) throw error;
             fetchData();
             setSelectedOrder(prev => prev ? { ...prev, ...updates } : null);
         } catch (error) {
@@ -178,9 +204,8 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
         if (!window.confirm('¿Estás seguro de que deseas eliminar este pedido? Esta acción no se puede deshacer.')) return;
 
         try {
-            await fetch(`${API_BASE_URL}/admin/orders/${id}`, {
-                method: 'DELETE'
-            });
+            const { error } = await supabase.from('orders').delete().eq('id', id);
+            if (error) throw error;
             setSelectedOrder(null);
             fetchData();
         } catch (error) {
@@ -201,19 +226,12 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
         };
 
         try {
-            if (editingProduct) {
-                await fetch(`${API_BASE_URL}/admin/products/${editingProduct.id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(productData)
-                });
-            } else {
-                await fetch(`${API_BASE_URL}/admin/products`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(productData)
-                });
-            }
+            const { error } = editingProduct 
+                ? await supabase.from('products').update(productData).eq('id', editingProduct.id)
+                : await supabase.from('products').insert([productData]);
+
+            if (error) throw error;
+
             setIsProductModalOpen(false);
             setEditingProduct(null);
             fetchData();
@@ -720,13 +738,13 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                 {inventoryTab === 'history' && <InventoryHistoryView logs={inventoryHistory} />}
                                 {inventoryTab === 'report' && <InventoryReportView report={inventoryReport} />}
                                 {inventoryTab === 'bulk' && <InventoryBulkView products={products} onBulkUpdate={async (data) => {
-                                    await fetch(`${API_BASE_URL}/admin/inventory/bulk-load`, {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify(data)
-                                    });
-                                    fetchData();
-                                    setInventoryTab('list');
+                                    const { error } = await supabase.from('products').upsert(data);
+                                    if (error) {
+                                        alert('Error en carga masiva: ' + error.message);
+                                    } else {
+                                        fetchData();
+                                        setInventoryTab('list');
+                                    }
                                 }} />}
                             </div>
                         )}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Heart, Lock, User, ArrowLeft, Mail, Phone, MapPin, Eye, EyeOff } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
-import { API_BASE_URL } from '../utils/api';
+import { supabase } from '../utils/supabaseClient';
 
 const RegisterPage = ({ onBack, onRegisterSuccess }) => {
     const [formData, setFormData] = useState({
@@ -27,29 +27,26 @@ const RegisterPage = ({ onBack, onRegisterSuccess }) => {
 
         setIsLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    id: 0, // Backend will assign
-                    name: formData.name,
-                    email: formData.email,
-                    phone: formData.phone,
-                    address: formData.address,
+            // Direct insertion into the 'users' table (no auth.signUp for now)
+            const { data, error: dbError } = await supabase
+                .from('users')
+                .insert([{
+                    email: formData.email.toLowerCase(),
                     password: formData.password,
-                    role: 'client'
-                })
-            });
+                    name: formData.name,
+                    role: 'client',
+                    phone: formData.phone,
+                    address: formData.address
+                }])
+                .select()
+                .single();
 
-            const data = await response.json();
-            if (response.ok) {
-                alert('¡Usuario registrado con éxito!');
-                onRegisterSuccess();
-            } else {
-                setError(data.detail || 'Error en el registro');
-            }
+            if (dbError) throw dbError;
+
+            alert('¡Registro exitoso! Ya puedes iniciar sesión.');
+            onBack();
         } catch (err) {
-            setError('No se pudo conectar con el servidor');
+            setError(err.message || 'Error en el registro');
         } finally {
             setIsLoading(false);
         }
@@ -209,23 +206,34 @@ const RegisterPage = ({ onBack, onRegisterSuccess }) => {
                                 onSuccess={async (credentialResponse) => {
                                     setIsLoading(true);
                                     try {
-                                        const response = await fetch(`${API_BASE_URL}/google-login`, {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ token: credentialResponse.credential })
-                                        });
-                                        const data = await response.json();
-                                        if (response.ok) {
-                                            alert('¡Bienvenido! Iniciaste sesión con Google');
-                                            // Trigger the app's login handler
-                                            // We need to pass the login handler to RegisterPage if we want to log in immediately
-                                            // For now, let's assume it works like a registration/login hybrid
-                                            onRegisterSuccess();
+                                        const response = await fetch(`https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=${credentialResponse.credential}`);
+                                        const googleUser = await response.json();
+                                        
+                                        const { data, error } = await supabase
+                                            .from('users')
+                                            .select('*')
+                                            .eq('email', googleUser.email)
+                                            .single();
+
+                                        if (data) {
+                                            alert('Ya tienes una cuenta. Iniciando sesión...');
+                                            onRegisterSuccess(); // Go to login/home
                                         } else {
-                                            setError(data.detail || 'Error en Google Login');
+                                            const { data: newUser, error: regError } = await supabase
+                                                .from('users')
+                                                .insert([{ email: googleUser.email, name: googleUser.name, role: 'client' }])
+                                                .select()
+                                                .single();
+                                            
+                                            if (newUser) {
+                                                alert('¡Bienvenido! Cuenta creada con Google');
+                                                onRegisterSuccess();
+                                            } else {
+                                                setError('Error al crear cuenta');
+                                            }
                                         }
                                     } catch (err) {
-                                        setError('Error al registrarte con Google');
+                                        setError('Error al conectar con Google');
                                     } finally {
                                         setIsLoading(false);
                                     }

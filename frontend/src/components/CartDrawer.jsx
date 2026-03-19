@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Trash2, ShoppingBag, Plus, Minus, CreditCard, Camera, CheckCircle, Copy, ExternalLink, QrCode } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatImageUrl } from '../utils/imageUrl';
-import { API_BASE_URL } from '../utils/api';
+import { supabase } from '../utils/supabaseClient';
 
 const CartDrawer = ({ isOpen, onClose, cart, onRemove, user, onOrderComplete, settings }) => {
     const [step, setStep] = useState('cart'); // 'cart', 'payment', 'success'
@@ -26,34 +26,61 @@ const CartDrawer = ({ isOpen, onClose, cart, onRemove, user, onOrderComplete, se
 
     const handleCreateOrder = async () => {
         try {
-            const response = await fetch(`${API_BASE_URL}/order`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+            // 1. Create the Order
+            const { data: orderData, error: orderError } = await supabase
+                .from('orders')
+                .insert([{
                     user_id: user?.id || null,
                     customer_name: user?.name || "Invitado",
                     customer_phone: user?.phone || "",
                     customer_address: user?.address || "",
-                    items: cart.map(item => ({
-                        id: item.id,
-                        name: item.name,
-                        price: item.price,
-                        quantity: item.quantity
-                    })),
-                    total: total
-                })
-            });
+                    total: total,
+                    status: 'procesando',
+                    timestamp: new Date().toISOString(),
+                    items_json: JSON.stringify(cart)
+                }])
+                .select()
+                .single();
 
-            const data = await response.json();
-            if (response.ok) {
-                setOrderId(data.order_id);
-                setStep('payment');
-            } else {
-                alert(data.detail || 'Error al procesar el pedido.');
+            if (orderError) throw orderError;
+
+            const newOrderId = orderData.id;
+
+            // 2. Insert Order Items
+            const orderItems = cart.map(item => ({
+                order_id: newOrderId,
+                product_name: item.name,
+                product_id: item.id,
+                price: item.price,
+                quantity: item.quantity
+            }));
+
+            const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
+            if (itemsError) throw itemsError;
+
+            // 3. Update Stock & Logs (for each item)
+            for (const item of cart) {
+                const { data: currentProd } = await supabase.from('products').select('stock').eq('id', item.id).single();
+                const oldStock = currentProd?.stock || 0;
+                const newStock = Math.max(0, oldStock - item.quantity);
+
+                await supabase.from('products').update({ stock: newStock }).eq('id', item.id);
+                
+                await supabase.from('inventory_logs').insert([{
+                    product_id: item.id,
+                    change_type: 'sale',
+                    quantity_changed: -item.quantity,
+                    previous_stock: oldStock,
+                    new_stock: newStock,
+                    timestamp: new Date().toISOString()
+                }]);
             }
+
+            setOrderId(newOrderId);
+            setStep('payment');
         } catch (error) {
-            console.error('API Error:', error);
-            alert('No se pudo conectar con el servidor.');
+            console.error('Supabase Error:', error);
+            alert('Error al procesar el pedido: ' + (error.message || 'Error desconocido'));
         }
     };
 
@@ -62,17 +89,25 @@ const CartDrawer = ({ isOpen, onClose, cart, onRemove, user, onOrderComplete, se
         if (!file) return;
 
         setIsUploading(true);
-        const formData = new FormData();
-        formData.append('file', file);
         try {
-            const res = await fetch(`${API_BASE_URL}/admin/upload-image`, {
-                method: 'POST',
-                body: formData
-            });
-            const data = await res.json();
-            if (data.status === 'success') {
-                setReceiptUrl(data.url);
+            const fileName = `${Date.now()}_${file.name}`;
+            const { data, error } = await supabase.storage
+                .from('receipts') // Ensure this bucket exists in Supabase
+                .upload(fileName, file);
+
+            if (error) {
+                // If bucket doesn't exist, we'll try a fallback or alert
+                if (error.message.includes('bucket not found')) {
+                    alert('Error: El contenedor "receipts" no existe en Supabase Storage. Créalo para permitir subir comprobantes.');
+                }
+                throw error;
             }
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('receipts')
+                .getPublicUrl(fileName);
+
+            setReceiptUrl(publicUrl);
         } catch (err) {
             console.error('Upload error:', err);
         } finally {
@@ -88,19 +123,18 @@ const CartDrawer = ({ isOpen, onClose, cart, onRemove, user, onOrderComplete, se
 
         setReportingPayment(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/order/${orderId}/report-payment`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+            const { error } = await supabase
+                .from('orders')
+                .update({
                     payment_proof: receiptUrl,
                     payment_method: paymentMethod,
-                    payment_reference: reference
+                    payment_reference: reference,
+                    status: 'esperando pago'
                 })
-            });
+                .eq('id', orderId);
 
-            if (response.ok) {
+            if (!error) {
                 // Enviar también a WhatsApp para respaldo
-                const itemsList = cart.map(item => `- ${item.quantity}x ${item.name}`).join('\n');
                 const message = `✅ *PAGO REPORTADO - Pedido #${orderId}*\n\n` +
                     `*Cliente:* ${user?.name || "Invitado"}\n` +
                     `*Método:* ${paymentMethod}\n` +
@@ -112,9 +146,12 @@ const CartDrawer = ({ isOpen, onClose, cart, onRemove, user, onOrderComplete, se
                 window.open(`https://wa.me/${settings?.contact_phone || '584127827734'}?text=${whatsappMsg}`, '_blank');
                 
                 setStep('success');
+            } else {
+                throw error;
             }
         } catch (error) {
             console.error('Report error:', error);
+            alert('Error al reportar pago: ' + error.message);
         } finally {
             setReportingPayment(false);
         }

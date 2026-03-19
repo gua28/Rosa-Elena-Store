@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { Heart, Lock, User, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
-import { API_BASE_URL } from '../utils/api';
-
-const LoginPage = ({ onBack, onLogin, onGoToRegister }) => {
+import { supabase } from '../utils/supabaseClient';
+function LoginPage({ onBack, onLogin, onGoToRegister }) {
     const [credentials, setCredentials] = useState({ email: '', password: '' });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -15,20 +14,25 @@ const LoginPage = ({ onBack, onLogin, onGoToRegister }) => {
         setIsLoading(true);
 
         try {
-            const response = await fetch(`${API_BASE_URL}/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(credentials)
-            });
+            // Direct check against our 'users' table
+            // This bypasses Supabase Auth's internal system to use the credentials we recovered
+            const { data, error: dbError } = await supabase
+                .from('users')
+                .select('*')
+                .eq('email', credentials.email.toLowerCase())
+                .eq('password', credentials.password)
+                .single();
 
-            const data = await response.json();
-            if (response.ok) {
-                onLogin(data.user);
-            } else {
-                setError(data.detail || 'Credenciales incorrectas');
+            if (dbError || !data) {
+                setError('Credenciales incorrectas (Verifique email y contraseña)');
+                return;
             }
+
+            // Successful login
+            onLogin(data);
+
         } catch (err) {
-            setError('No se pudo conectar con el servidor');
+            setError('Error al conectar con la base de datos');
         } finally {
             setIsLoading(false);
         }
@@ -119,19 +123,33 @@ const LoginPage = ({ onBack, onLogin, onGoToRegister }) => {
                                 onSuccess={async (credentialResponse) => {
                                     setIsLoading(true);
                                     try {
-                                        const response = await fetch(`${API_BASE_URL}/google-login`, {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ token: credentialResponse.credential })
-                                        });
-                                        const data = await response.json();
-                                        if (response.ok) {
-                                            onLogin(data.user);
+                                        // Simple Google Login simulation for now:
+                                        // In a real app we would use supabase.auth.signInWithOAuth
+                                        // But to keep sync with our custom 'users' table:
+                                        const response = await fetch(`https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=${credentialResponse.credential}`);
+                                        const googleUser = await response.json();
+                                        
+                                        const { data, error } = await supabase
+                                            .from('users')
+                                            .select('*')
+                                            .eq('email', googleUser.email)
+                                            .single();
+
+                                        if (data) {
+                                            onLogin(data);
                                         } else {
-                                            setError(data.detail || 'Error en Google Login');
+                                            // Create user if not exists
+                                            const { data: newUser, error: regError } = await supabase
+                                                .from('users')
+                                                .insert([{ email: googleUser.email, name: googleUser.name, role: 'client' }])
+                                                .select()
+                                                .single();
+                                            
+                                            if (newUser) onLogin(newUser);
+                                            else setError('Error al crear cuenta de Google');
                                         }
                                     } catch (err) {
-                                        setError('Error al conectar con Google');
+                                        setError('Error al verificar identidad de Google');
                                     } finally {
                                         setIsLoading(false);
                                     }

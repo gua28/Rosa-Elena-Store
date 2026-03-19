@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageCircle, X, Send, Heart, User, Sparkles, MessageSquare, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { API_BASE_URL } from '../utils/api';
+import { supabase } from '../utils/supabaseClient';
+import { askGemini } from '../utils/gemini';
 
 const Chatbot = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -16,9 +17,9 @@ const Chatbot = () => {
     useEffect(() => {
         const fetchProducts = async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/products`);
-                const data = await response.json();
-                setProducts(data);
+                const { data, error } = await supabase.from('products').select('*');
+                if (error) throw error;
+                setProducts(data || []);
             } catch (error) {
                 console.error("Error fetching products for chatbot:", error);
             }
@@ -54,30 +55,21 @@ const Chatbot = () => {
         }
 
         try {
-            const historyForBackend = messages.map(m => ({
+            const historyForGemini = messages.map(m => ({
                 role: m.sender === 'user' ? 'user' : 'bot',
                 content: m.text
             }));
 
-            const response = await fetch(`${API_BASE_URL}/chat`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    message: text,
-                    history: historyForBackend
-                })
-            });
-
-            const data = await response.json();
+            const replyText = await askGemini(text, historyForGemini, products);
 
             // Auto-detect if AI wants to show WhatsApp button
-            const needsWhatsapp = data.reply.toLowerCase().includes('whatsapp') ||
-                data.reply.toLowerCase().includes('bajo pedido') ||
-                data.reply.toLowerCase().includes('escribenos');
+            const needsWhatsapp = replyText.toLowerCase().includes('whatsapp') ||
+                replyText.toLowerCase().includes('bajo pedido') ||
+                replyText.toLowerCase().includes('escribenos');
 
             setMessages(prev => [...prev, {
                 id: Date.now() + 1,
-                text: data.reply,
+                text: replyText,
                 sender: 'bot',
                 showWhatsAppBtn: needsWhatsapp
             }]);

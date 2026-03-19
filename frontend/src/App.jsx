@@ -8,44 +8,13 @@ import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
 import UserProfile from './components/UserProfile';
 import AdminDashboard from './components/AdminDashboard';
-import { API_BASE_URL } from './utils/api';
+import { supabase } from './utils/supabaseClient';
 import { Heart, Sparkles, User as UserIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 
-const products = [
-  {
-    id: 1,
-    name: "Lazo Rosa Encanto",
-    category: "Lazos",
-    price: 3.50,
-    image: "https://images.unsplash.com/photo-1590502120012-de59b563459e?q=80&w=400&auto=format&fit=crop",
-    description: "Hermoso lazo hecho a mano con cinta de raso premium y apliques de perlas."
-  },
-  {
-    id: 2,
-    name: "Piñata Estrella Pastel",
-    category: "Piñatas",
-    price: 15.00,
-    image: "https://images.unsplash.com/photo-1620173834206-c029bf322dba?q=80&w=400&auto=format&fit=crop",
-    description: "Piñata personalizada en forma de estrella con colores pasteles ideales para cumpleaños."
-  },
-  {
-    id: 3,
-    name: "Birrete Graduación Oro",
-    category: "Birretes",
-    price: 12.00,
-    image: "https://images.unsplash.com/photo-1523050853023-8c2d2909f4d3?q=80&w=400&auto=format&fit=crop",
-    description: "Birrete decorado de lujo con detalles dorados y personalización de nombre."
-  },
-  {
-    id: 4,
-    name: "Set de Decoración Fiesta",
-    category: "Decoraciones",
-    price: 25.00,
-    image: "https://images.unsplash.com/photo-1533294485618-f58a741ef0b2?q=80&w=400&auto=format&fit=crop",
-    description: "Kit completo de guirnaldas, flores de papel y toppers para torta."
-  }
-];
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "731998525046-3j0rvs1e8eb9v2m0j5c6p7v8p9q0r1s2.apps.googleusercontent.com";
+
 
 function App() {
   const [products, setProducts] = useState([]);
@@ -75,9 +44,9 @@ function App() {
   const fetchProducts = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/products`);
-      const data = await response.json();
-      setProducts(data);
+      const { data, error } = await supabase.from('products').select('*').order('id');
+      if (error) throw error;
+      setProducts(data || []);
     } catch (error) {
       console.error('Error fetching products:', error);
     } finally {
@@ -87,9 +56,10 @@ function App() {
 
   const fetchSettings = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/settings`);
-      const data = await response.json();
-      setSettings(data);
+      const { data, error } = await supabase.from('settings').select('*');
+      if (error) throw error;
+      const settingsMap = data.reduce((acc, curr) => ({ ...acc, [curr.key]: curr.value }), {});
+      setSettings(settingsMap);
     } catch (error) {
       console.error('Error fetching settings:', error);
     }
