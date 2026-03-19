@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Heart, Lock, User, ArrowLeft } from 'lucide-react';
+import { Heart, Lock, User, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { API_BASE_URL } from '../utils/api';
 
 const LoginPage = ({ onBack, onLogin, onGoToRegister }) => {
     const [credentials, setCredentials] = useState({ email: '', password: '' });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -78,13 +79,20 @@ const LoginPage = ({ onBack, onLogin, onGoToRegister }) => {
                             <div className="relative">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                                 <input
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     required
                                     placeholder="••••••••"
                                     value={credentials.password}
                                     onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
-                                    className="w-full bg-white/50 border border-gray-100 rounded-2xl py-4 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                    className="w-full bg-white/50 border border-gray-100 rounded-2xl py-4 pl-12 pr-12 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-primary transition-colors"
+                                >
+                                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                </button>
                             </div>
                         </div>
 
