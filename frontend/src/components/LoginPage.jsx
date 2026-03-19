@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Heart, Lock, User, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { GoogleLogin } from '@react-oauth/google';
 import { API_BASE_URL } from '../utils/api';
 
 const LoginPage = ({ onBack, onLogin, onGoToRegister }) => {
@@ -103,6 +104,48 @@ const LoginPage = ({ onBack, onLogin, onGoToRegister }) => {
                         >
                             {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
                         </button>
+
+                        <div className="relative my-8">
+                            <div className="absolute inset-0 flex items-center">
+                                <span className="w-full border-t border-gray-100"></span>
+                            </div>
+                            <div className="relative flex justify-center text-xs uppercase">
+                                <span className="bg-white px-4 text-gray-400 font-bold tracking-widest">O continuar con</span>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-center">
+                            <GoogleLogin
+                                onSuccess={async (credentialResponse) => {
+                                    setIsLoading(true);
+                                    try {
+                                        const response = await fetch(`${API_BASE_URL}/google-login`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ token: credentialResponse.credential })
+                                        });
+                                        const data = await response.json();
+                                        if (response.ok) {
+                                            onLogin(data.user);
+                                        } else {
+                                            setError(data.detail || 'Error en Google Login');
+                                        }
+                                    } catch (err) {
+                                        setError('Error al conectar con Google');
+                                    } finally {
+                                        setIsLoading(false);
+                                    }
+                                }}
+                                onError={() => {
+                                    setError('Error en la autenticación de Google');
+                                }}
+                                theme="outline"
+                                shape="pill"
+                                size="large"
+                                text="continue_with"
+                                width="100%"
+                            />
+                        </div>
                     </form>
 
                     <div className="mt-10 pt-8 border-t border-gray-100 flex flex-col gap-4 text-center">

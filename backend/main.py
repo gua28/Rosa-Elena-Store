@@ -13,6 +13,9 @@ from sqlalchemy.orm import Session
 
 import models
 from database import engine, get_db
+from google.oauth2 import id_token
+from google.auth.transport import requests
+import secrets
 
 # ==========================================
 # CONFIGURACIÓN DE IA (GEMINI)
@@ -240,6 +243,44 @@ async def register(user: UserBase, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
     return {"status": "success", "user": {"id": new_user.id, "email": new_user.email, "role": new_user.role, "name": new_user.name, "phone": new_user.phone, "address": new_user.address}}
+
+@app.post("/google-login")
+async def google_login(data: dict = Body(...), db: Session = Depends(get_db)):
+    token = data.get("token")
+    client_id = os.getenv("GOOGLE_CLIENT_ID", "731998525046-3j0rvs1e8eb9v2m0j5c6p7v8p9q0r1s2.apps.googleusercontent.com")
+    
+    try:
+        idinfo = id_token.verify_oauth2_token(token, requests.Request(), client_id)
+        email = idinfo['email']
+        name = idinfo.get('name', '')
+        
+        user = db.query(models.User).filter(models.User.email == email).first()
+        
+        if not user:
+            # Create user if it doesn't exist
+            user = models.User(
+                email=email,
+                password=secrets.token_urlsafe(16), # Random pass for safety
+                name=name,
+                role="client"
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            
+        return {
+            "status": "success", 
+            "user": {
+                "id": user.id, 
+                "email": user.email, 
+                "role": user.role, 
+                "name": user.name, 
+                "phone": user.phone, 
+                "address": user.address
+            }
+        }
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Token de Google inválido")
 
 # ==========================================
 # PRODUCT ENDPOINTS

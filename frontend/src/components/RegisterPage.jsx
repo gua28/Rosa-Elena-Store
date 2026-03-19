@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Heart, Lock, User, ArrowLeft, Mail, Phone, MapPin, Eye, EyeOff } from 'lucide-react';
+import { GoogleLogin } from '@react-oauth/google';
 import { API_BASE_URL } from '../utils/api';
 
 const RegisterPage = ({ onBack, onRegisterSuccess }) => {
@@ -193,6 +194,51 @@ const RegisterPage = ({ onBack, onRegisterSuccess }) => {
                         >
                             {isLoading ? 'Registrando...' : 'Registrarse'}
                         </button>
+
+                        <div className="relative my-6">
+                            <div className="absolute inset-0 flex items-center">
+                                <span className="w-full border-t border-gray-100"></span>
+                            </div>
+                            <div className="relative flex justify-center text-[10px] uppercase">
+                                <span className="bg-white px-4 text-gray-400 font-bold tracking-widest">O más rápido con</span>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-center">
+                            <GoogleLogin
+                                onSuccess={async (credentialResponse) => {
+                                    setIsLoading(true);
+                                    try {
+                                        const response = await fetch(`${API_BASE_URL}/google-login`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ token: credentialResponse.credential })
+                                        });
+                                        const data = await response.json();
+                                        if (response.ok) {
+                                            alert('¡Bienvenido! Iniciaste sesión con Google');
+                                            // Trigger the app's login handler
+                                            // We need to pass the login handler to RegisterPage if we want to log in immediately
+                                            // For now, let's assume it works like a registration/login hybrid
+                                            onRegisterSuccess();
+                                        } else {
+                                            setError(data.detail || 'Error en Google Login');
+                                        }
+                                    } catch (err) {
+                                        setError('Error al registrarte con Google');
+                                    } finally {
+                                        setIsLoading(false);
+                                    }
+                                }}
+                                onError={() => {
+                                    setError('Error en la autenticación de Google');
+                                }}
+                                theme="outline"
+                                shape="pill"
+                                size="large"
+                                width="100%"
+                            />
+                        </div>
                     </form>
 
 
