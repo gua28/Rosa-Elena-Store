@@ -11,10 +11,6 @@ import AdminDashboard from './components/AdminDashboard';
 import { supabase } from './utils/supabaseClient';
 import { Heart, Sparkles, User as UserIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Sparkles, User as UserIcon } from 'lucide-react';
-
-
-
 
 function App() {
   const [products, setProducts] = useState([]);
