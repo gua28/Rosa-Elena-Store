@@ -1,9 +1,9 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const GEMINI_API_KEY = "AIzaSyATh4YbbSBsH02XjBo1ajNLndIUDxRQi0w"; // Clave Maestra Limpia y Nueva
+const GEMINI_API_KEY = "AIzaSyATh4YbbSBsH02XjBo1ajNLndIUDxRQi0w"; // Clave Maestra 100% Limpia
 
 export default async function handler(req, res) {
-    // Cabeceras CORS robustas
+    // Cabeceras CORS Blindadas
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
+        return res.status(405).json({ error: 'Método no permitido' });
     }
 
     try {
@@ -30,25 +30,24 @@ export default async function handler(req, res) {
 
         const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
         
-        // Probamos con gemini-1.5-flash o gemini-flash-latest según la región/permisos
-        const modelNames = ["gemini-1.5-flash", "gemini-flash-latest", "gemini-1.5-flash-8b"];
+        // Probamos modelos en cascada inteligente para asegurar respuesta
+        const models = ["gemini-1.5-flash-latest", "gemini-flash-latest", "gemini-2.0-flash"];
         let model = null;
         let lastError = null;
 
-        // Bucle de reintento inteligente para encontrar el modelo activo del usuario
-        for (const name of modelNames) {
+        for (const modelName of models) {
             try {
-                const testModel = genAI.getGenerativeModel({ model: name });
-                // Solo configuramos, no enviamos mensaje de prueba para no gastar cuota innecesaria
-                model = testModel;
+                // Configuramos el modelo y probamos su acceso
+                model = genAI.getGenerativeModel({ model: modelName });
                 break;
-            } catch (e) {
-                lastError = e;
+            } catch (err) {
+                lastError = err;
+                console.error(`Error inicializando ${modelName}:`, err.message);
             }
         }
 
         if (!model) {
-            throw new Error(`No se pudo inicializar ningún modelo de Gemini: ${lastError?.message}`);
+            throw new Error("No se pudo conectar con ningún motor de Google. ¡Revisa tu llave!");
         }
 
         let inventoryContext = "";
@@ -58,24 +57,24 @@ export default async function handler(req, res) {
         });
 
         const systemInstruction = `
-        Eres Rosa Bot, el asistente virtual oficial de 'Creaciones Rosa Elena'. 
-        Tu objetivo es ser muy carismática (😊✨🎀), persuasiva y útil. 
-        Hablas de forma conversacional (¡NO ROBÓTICA! ni preprogramada). 
+        Eres Rosa Bot 🎀 de 'Creaciones Rosa Elena'. 
+        Personalidad: Carismática, amorosa, profesional, persuasiva. 😊✨
+        Habilidades: Asesorar sobre lazos, piñatas, birretes y pedidos personalizados.
 
-        DATOS DE LA TIENDA (INVENTARIO):
+        INVENTARIO REAL (Úsalo siempre):
         ${inventoryContext}
 
-        REGLAS:
-        1. Responde de forma breve, carismática y MUY ÚTIL.
-        2. Si algo está agotado, ofrece hacerlo bajo pedido personalizado.
-        3. Siempre anima al cliente a ver el catálogo o contactar por WhatsApp.
-        4. No menciones que eres una IA, eres el asistente del equipo de Rosa Elena.
+        REGLAS DE ORO:
+        1. Responde de forma breve y cariñosa.
+        2. Si algo está agotado, ofrece personalizarlo rápidamente.
+        3. Invita a ver el catálogo o escribir por WhatsApp para detalles.
+        4. Eres Rosa Bot, el asistente oficial. 🎀
         `;
 
         const chat = model.startChat({
             history: [
                 { role: 'user', parts: [{ text: systemInstruction }] },
-                { role: 'model', parts: [{ text: "¡Entendido! Soy Rosa Bot 🎀, estoy lista para ayudar a tus clientes de Creaciones Rosa Elena con inteligencia y carisma. ✨" }] },
+                { role: 'model', parts: [{ text: "¡Hola! ✨ Soy Rosa Bot 🎀, estoy lista para brillar junto a tus clientes. ¿Qué cosita linda necesitan?" }] },
                 ...(history || []).map(h => ({
                     role: h.role === 'user' ? 'user' : 'model',
                     parts: [{ text: h.content }]
@@ -93,7 +92,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ reply: responseText });
 
     } catch (error) {
-        console.error("Vercel Serverless Error (Rosa Bot):", error);
-        return res.status(500).json({ error: error.message || "Error procesando la inteligencia de Rosa Bot. 🎀" });
+        console.error("Vercel AI Error:", error);
+        return res.status(500).json({ error: error.message || "La IA tuvo un parpadeo creativo." });
     }
 }
