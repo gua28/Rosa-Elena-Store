@@ -172,20 +172,23 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
 
             const { error: updateError } = await supabase.from('products').update({ stock: newStock }).eq('id', id);
             if (updateError) throw updateError;
+            
+            // Refrescar UI inmediatamente
+            fetchData();
 
-            // Log the change
-            await supabase.from('inventory_logs').insert([{
+            // Log the change (silencioso)
+            supabase.from('inventory_logs').insert([{
                 product_id: id,
                 change_type: 'manual',
                 quantity_changed: newStock - prevStock,
                 previous_stock: prevStock,
                 new_stock: newStock,
                 timestamp: new Date().toISOString()
-            }]);
-
-            fetchData();
+            }]).then(() => {});
         } catch (error) {
             console.error('Error updating stock:', error);
+            // Fallback: Si no funcionó, forzamos recarga visual
+            fetchData();
         }
     };
 
