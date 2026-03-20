@@ -11,9 +11,9 @@ import AdminDashboard from './components/AdminDashboard';
 import { supabase } from './utils/supabaseClient';
 import { Heart, Sparkles, User as UserIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GoogleOAuthProvider } from '@react-oauth/google';
+import { Heart, Sparkles, User as UserIcon } from 'lucide-react';
 
-const GOOGLE_CLIENT_ID = "409884072531-sl9t41hb5aehdj116pa2humjdj8qvt6k.apps.googleusercontent.com"; // Hardcoded for final defense fix
+
 
 
 function App() {

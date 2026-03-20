@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Heart, Lock, User, ArrowLeft, Mail, Phone, MapPin, Eye, EyeOff } from 'lucide-react';
-import { GoogleLogin } from '@react-oauth/google';
+
 import { supabase } from '../utils/supabaseClient';
 
 const RegisterPage = ({ onBack, onRegisterSuccess }) => {
@@ -187,66 +187,10 @@ const RegisterPage = ({ onBack, onRegisterSuccess }) => {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full bg-gray-900 hover:bg-black text-white py-4 rounded-2xl font-bold shadow-xl transition-all active:scale-95 disabled:opacity-50 mt-4"
+                            className="w-full bg-gray-900 hover:bg-black text-white py-4 rounded-2xl font-bold shadow-xl transition-all active:scale-95 disabled:opacity-50 mt-4 outline-none"
                         >
                             {isLoading ? 'Registrando...' : 'Registrarse'}
                         </button>
-
-                        <div className="relative my-6">
-                            <div className="absolute inset-0 flex items-center">
-                                <span className="w-full border-t border-gray-100"></span>
-                            </div>
-                            <div className="relative flex justify-center text-[10px] uppercase">
-                                <span className="bg-white px-4 text-gray-400 font-bold tracking-widest">O más rápido con</span>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-center">
-                            <GoogleLogin
-                                onSuccess={async (credentialResponse) => {
-                                    setIsLoading(true);
-                                    try {
-                                        const response = await fetch(`https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=${credentialResponse.credential}`);
-                                        const googleUser = await response.json();
-                                        
-                                        const { data, error } = await supabase
-                                            .from('users')
-                                            .select('*')
-                                            .eq('email', googleUser.email)
-                                            .single();
-
-                                        if (data) {
-                                            alert('Ya tienes una cuenta. Iniciando sesión...');
-                                            onRegisterSuccess(); // Go to login/home
-                                        } else {
-                                            const { data: newUser, error: regError } = await supabase
-                                                .from('users')
-                                                .insert([{ email: googleUser.email, name: googleUser.name, role: 'client' }])
-                                                .select()
-                                                .single();
-                                            
-                                            if (newUser) {
-                                                alert('¡Bienvenido! Cuenta creada con Google');
-                                                onRegisterSuccess();
-                                            } else {
-                                                setError('Error al crear cuenta');
-                                            }
-                                        }
-                                    } catch (err) {
-                                        setError('Error al conectar con Google');
-                                    } finally {
-                                        setIsLoading(false);
-                                    }
-                                }}
-                                onError={() => {
-                                    setError('Error en la autenticación de Google');
-                                }}
-                                theme="outline"
-                                shape="pill"
-                                size="large"
-                                width="100%"
-                            />
-                        </div>
                     </form>
 
 

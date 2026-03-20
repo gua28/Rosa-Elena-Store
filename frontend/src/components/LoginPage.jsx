@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Heart, Lock, User, ArrowLeft, Eye, EyeOff } from 'lucide-react';
-import { GoogleLogin } from '@react-oauth/google';
+
 import { supabase } from '../utils/supabaseClient';
 function LoginPage({ onBack, onLogin, onGoToRegister }) {
     const [credentials, setCredentials] = useState({ email: '', password: '' });
@@ -109,62 +109,7 @@ function LoginPage({ onBack, onLogin, onGoToRegister }) {
                             {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
                         </button>
 
-                        <div className="relative my-8">
-                            <div className="absolute inset-0 flex items-center">
-                                <span className="w-full border-t border-gray-100"></span>
-                            </div>
-                            <div className="relative flex justify-center text-xs uppercase">
-                                <span className="bg-white px-4 text-gray-400 font-bold tracking-widest">O continuar con</span>
-                            </div>
-                        </div>
 
-                        <div className="flex justify-center">
-                            <GoogleLogin
-                                onSuccess={async (credentialResponse) => {
-                                    setIsLoading(true);
-                                    try {
-                                        // Use the Google credential to get user info
-                                        const response = await fetch(`https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=${credentialResponse.credential}`);
-                                        const googleUser = await response.json();
-                                        
-                                        // Check if the user exists in our DB
-                                        const { data, error } = await supabase
-                                            .from('users')
-                                            .select('*')
-                                            .eq('email', googleUser.email)
-                                            .single();
-
-                                        if (data) {
-                                            onLogin(data);
-                                        } else {
-                                            // Register as client if not found
-                                            const { data: newUser } = await supabase
-                                                .from('users')
-                                                .insert([{ 
-                                                    email: googleUser.email, 
-                                                    name: googleUser.name, 
-                                                    role: 'client' 
-                                                }])
-                                                .select()
-                                                .single();
-                                            onLogin(newUser);
-                                        }
-                                    } catch (err) {
-                                        setError('Error al sincronizar con tu cuenta de Google');
-                                    } finally {
-                                        setIsLoading(false);
-                                    }
-                                }}
-                                onError={() => {
-                                    setError('Error en la autenticación de Google');
-                                }}
-                                theme="outline"
-                                shape="pill"
-                                size="large"
-                                text="continue_with"
-                                width="100%"
-                            />
-                        </div>
                     </form>
 
                     <div className="mt-10 pt-8 border-t border-gray-100 flex flex-col gap-4 text-center">
