@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const GEMINI_API_KEY = "AIzaSyDecRF_nbrJDeGXpzLwwO60d-3FTubsDHw"; // In production, move to .env
+const GEMINI_API_KEY = "AIzaSyA9J-rYkKwdX6vGOrP0C9Cdokxxa7iW4NI"; // Updated key for the final defense fix
 
 export const askGemini = async (message, history, products) => {
     try {
