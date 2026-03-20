@@ -738,13 +738,12 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                 {inventoryTab === 'history' && <InventoryHistoryView logs={inventoryHistory} />}
                                 {inventoryTab === 'report' && <InventoryReportView report={inventoryReport} />}
                                 {inventoryTab === 'bulk' && <InventoryBulkView products={products} onBulkUpdate={async (data) => {
-                                    const { error } = await supabase.from('products').upsert(data);
-                                    if (error) {
-                                        alert('Error en carga masiva: ' + error.message);
-                                    } else {
-                                        fetchData();
-                                        setInventoryTab('list');
+                                    // Make sure we just update existing products correctly
+                                    for (const p of data) {
+                                        await supabase.from('products').update({ stock: p.stock }).eq('id', p.id);
                                     }
+                                    fetchData();
+                                    setInventoryTab('list');
                                 }} />}
                             </div>
                         )}
@@ -1452,12 +1451,17 @@ const InventoryBulkView = ({ products, onBulkUpdate }) => {
 
     const handleSubmit = () => {
         const payload = Object.entries(updates)
-            .filter(([_, qty]) => qty !== 0 && qty !== "")
-            .map(([id, qty]) => ({
-                id: parseInt(id),
-                quantity: parseInt(qty),
-                reason: "Carga masiva rápida"
-            }));
+            .filter(([_, qty]) => qty !== 0 && qty !== "" && !isNaN(parseInt(qty)))
+            .map(([idStr, qtyStr]) => {
+                const id = parseInt(idStr);
+                const change = parseInt(qtyStr);
+                const prod = products.find(p => p.id === id);
+                if (!prod) return null;
+                return {
+                    id: id,
+                    stock: Math.max(0, prod.stock + change)
+                };
+            }).filter(Boolean);
 
         if (payload.length > 0) {
             onBulkUpdate(payload);

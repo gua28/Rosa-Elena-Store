@@ -12,28 +12,40 @@ export const askGemini = async (message, history = [], products = []) => {
 
     try {
         console.log("Rosa Bot conectando con la nube para interacción total...");
+        const fetchWithTimeout = async (url, options, timeout = 5000) => {
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), timeout);
+            const res = await fetch(url, { ...options, signal: controller.signal });
+            clearTimeout(id);
+            return res;
+        };
         
         let response = null;
         try {
-            // Intento #1: Vercel Serverless Function
-            response = await fetch('/api/chat', {
+            // Intento #1: Vercel Serverless Function (Timeout 4s)
+            response = await fetchWithTimeout('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message, history, products })
-            });
+            }, 4000);
         } catch (e) {
-            console.log("Fetch a Vercel falló, intentando Python...");
+            console.log("Fetch a Vercel falló o superó el tiempo...");
         }
 
-        // Intento #2: Si Vercel no está levantado (ej. dev server local con Vite)
+        // Intento #2: Si Vercel no está levantado
         if (!response || !response.ok || response.status === 404) {
             console.log("Probando con Python Backend principal...");
             const { API_BASE_URL } = await import('./api');
-            response = await fetch(`${API_BASE_URL}/chat`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message, history })
-            });
+            try {
+                // Timeout de 5s para Render, si Render está dormido aborta rápido
+                response = await fetchWithTimeout(`${API_BASE_URL}/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message, history })
+                }, 5000);
+            } catch (e) {
+                console.log("Python Backend falló o superó el tiempo...");
+            }
         }
 
         if (response && response.ok) {
@@ -44,7 +56,7 @@ export const askGemini = async (message, history = [], products = []) => {
         throw new Error("Conexión perdida con ambos backends");
 
     } catch (error) {
-        console.warn("Rosa Bot: Activando Cerebro de Interacción Libre Local.");
+        console.warn("Rosa Bot: Activando Cerebro de Interacción Libre Local (por demora de red o error).");
 
         // --- BASE DE DATOS SEMÁNTICA LOCAL ---
         
