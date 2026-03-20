@@ -12,17 +12,36 @@ export const askGemini = async (message, history = [], products = []) => {
 
     try {
         console.log("Rosa Bot conectando con la nube para interacción total...");
-        const response = await fetch('/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message, history, products })
-        });
+        
+        let response = null;
+        try {
+            // Intento #1: Vercel Serverless Function
+            response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message, history, products })
+            });
+        } catch (e) {
+            console.log("Fetch a Vercel falló, intentando Python...");
+        }
 
-        if (response.ok) {
+        // Intento #2: Si Vercel no está levantado (ej. dev server local con Vite)
+        if (!response || !response.ok || response.status === 404) {
+            console.log("Probando con Python Backend principal...");
+            const { API_BASE_URL } = await import('./api');
+            response = await fetch(`${API_BASE_URL}/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message, history })
+            });
+        }
+
+        if (response && response.ok) {
             const data = await response.json();
             if (data.reply) return data.reply;
         }
-        throw new Error("Local Mode");
+        
+        throw new Error("Conexión perdida con ambos backends");
 
     } catch (error) {
         console.warn("Rosa Bot: Activando Cerebro de Interacción Libre Local.");

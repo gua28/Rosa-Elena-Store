@@ -210,8 +210,8 @@ async def chat_with_ia(request: ChatRequest, db: Session = Depends(get_db)):
             gemini_history.append({"role": role, "parts": [msg.content]})
 
     try:
-        # Create an ephemeral model instance with the dynamic system instruction
-        dynamic_model = genai.GenerativeModel('gemini-flash-lite-latest', system_instruction=system_instruction)
+        # Usamos el modelo estable gemini-1.5-flash compatible con la nueva API key
+        dynamic_model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=system_instruction)
         
         # Iniciamos el chat con memoria usando la history filtrada
         chat_session = dynamic_model.start_chat(history=gemini_history)

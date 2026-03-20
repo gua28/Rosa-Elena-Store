@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const GEMINI_API_KEY = "AIzaSyATh4YbbSBsH02XjBo1ajNLndIUDxRQi0w"; 
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AIzaSyB2dyWD3XkcpSvGosu1NRLsrMxEty8SRVM";
 
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Credentials', true);

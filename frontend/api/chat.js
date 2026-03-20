@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const GEMINI_API_KEY = "AIzaSyATh4YbbSBsH02XjBo1ajNLndIUDxRQi0w"; // Clave Maestra 100% Limpia
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AIzaSyB2dyWD3XkcpSvGosu1NRLsrMxEty8SRVM"; // Clave Nueva Segura
 
 export default async function handler(req, res) {
     // Cabeceras CORS Blindadas
@@ -31,7 +31,7 @@ export default async function handler(req, res) {
         const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
         
         // Probamos modelos en cascada inteligente para asegurar respuesta
-        const models = ["gemini-1.5-flash-latest", "gemini-flash-latest", "gemini-2.0-flash"];
+        const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-pro"];
         let model = null;
         let lastError = null;
 
