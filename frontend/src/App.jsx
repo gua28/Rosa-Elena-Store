@@ -13,7 +13,7 @@ import { Heart, Sparkles, User as UserIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "409884072531-sl9t41hb5aehdj116pa2humjdj8qvt6k.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = "409884072531-sl9t41hb5aehdj116pa2humjdj8qvt6k.apps.googleusercontent.com"; // Hardcoded for final defense fix
 
 
 function App() {
