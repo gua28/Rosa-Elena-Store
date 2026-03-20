@@ -30,11 +30,13 @@ export const askGemini = async (message, history, products) => {
         - Anima constantemente a que si ya están decididos, presionen "Añadir al Carrito" en la tarjeta del producto, o si quieren algo muy específico, que usen el botón de "WhatsApp" que te programaron.
         `;
 
+        const historyForGemini = history.map(h => ({
+            role: h.role === 'user' ? 'user' : 'model',
+            parts: [{ text: h.content }]
+        }));
+
         const chat = model.startChat({
-            history: history.map(h => ({
-                role: h.role === 'user' ? 'user' : 'model',
-                parts: [{ text: h.content }]
-            })),
+            history: historyForGemini,
             generationConfig: {
                 maxOutputTokens: 500,
             },
