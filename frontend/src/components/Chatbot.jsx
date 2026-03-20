@@ -55,11 +55,13 @@ const Chatbot = () => {
         }
 
         try {
-            // Se envía a la IA el historial de mensajes PREVIOS (sin el último del mensaje actual)
-            const historyForGemini = messages.map(m => ({
-                role: m.sender === 'user' ? 'user' : 'bot',
-                content: m.text
-            }));
+            // Enviamos el historial EXCLUYENDO el último mensaje que acabamos de añadir al estado local
+            const historyForGemini = messages
+                .filter(m => m.id !== newUserMessage.id) 
+                .map(m => ({
+                    role: m.sender === 'user' ? 'user' : 'bot',
+                    content: m.text
+                }));
 
             const replyText = await askGemini(text, historyForGemini, products);
 
