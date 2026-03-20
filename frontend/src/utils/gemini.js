@@ -54,16 +54,31 @@ export const askGemini = async (message, history = [], products = []) => {
             return "A ver... ¿Qué le dice un lazo a una trenza? ¡Oye, deja de enredarte tanto! 😂 Bromas aparte, ¡mis lazos nunca se portan mal! ✨";
         }
 
-        // 2. ASESORÍA Y RECOMENDACIONES (INTERACCIÓN LIBRE)
-        if (lowerMsg.includes("recomienda") || lowerMsg.includes("sugiere") || lowerMsg.includes("que compro")) {
-            const prod = products.length > 0 ? random(products) : null;
-            if (prod) {
-                return `¡Ay, qué difícil elegir! 😍 Pero si me preguntas, el ${prod.name} es tendencia ahorita. ¿Te cuento cuánto cuesta? 🎀`;
+        // --- 2. SUPER CEREBRO LOCAL (ASESORÍA E INVENTARIO) ---
+        const availableProducts = products.filter(p => p.stock > 0);
+
+        // 2.1 INVENTARIO Y DISPONIBILIDAD GENERAL
+        if (lowerMsg.includes("inventario") || lowerMsg.includes("disponible") || lowerMsg.includes("que tienes") || lowerMsg.includes("opciones") || lowerMsg.includes("catalogo") || lowerMsg.includes("catálogo")) {
+            if (availableProducts.length === 0) {
+                 return "En este momento estamos renovando el inventario, pero hacemos bellezas bajo pedido. 🌸 ¿Buscabas alguna temática o color en especial?";
             }
-            return "Te recomiendo nuestros lazos de la nueva colección. ✨ Son hechos a mano con cintas importadas. ¡Pegan con todo! 🌸";
+            const items = availableProducts.slice(0, 3).map(p => `${p.name} ($${p.price})`).join(", ");
+            return `¡Tengo cositas hermosas listas de entrega inmediata! ✨ Por ejemplo: ${items}. Si buscas algo distinto, también trabajo bajo pedido. ¿Qué ideas tienes? 🎀`;
         }
 
-        // 3. CONSULTAS DE NEGOCIO (PRECIOS, STOCK, PEDIDOS)
+        // 2.2 ASESORÍA Y RECOMENDACIÓN DE VENTAS
+        if (lowerMsg.includes("recomienda") || lowerMsg.includes("sugiere") || lowerMsg.includes("que compro") || lowerMsg.includes("regalo") || lowerMsg.includes("busco algo para") || lowerMsg.includes("asesora") || lowerMsg.includes("ayudame a elegir")) {
+            if (availableProducts.length > 0) {
+                const prod = random(availableProducts);
+                return `¡Ay, me fascina asesorar! 😍 Para un regalo espectacular, el "${prod.name}" está en tendencia. A las niñas les encanta y su precio es de $${prod.price}. ¡Además lo tengo listo para entrega! 🎁 ¿Te gustaría que te lo separe?`;
+            } else if (products.length > 0) {
+                const prod = random(products);
+                return `¡Me encantaría ayudarte a elegir! ✨ El "${prod.name}" es nuestro producto estrella. Aunque toca hacerlo bajo pedido, queda precioso. Su valor referencial es $${prod.price}. ¿Qué opinas? 🌸`;
+            }
+            return "Para algo especial, te recomiendo un lazo estilo 'Gala' con cristales. ✨ ¡Pegan con todo y son el centro de atención! 🌸";
+        }
+
+        // 2.3 CONSULTAS SOBRE PRODUCTOS ESPECÍFICOS SEGÚN INVENTARIO
         const relevantProducts = products.filter(p => 
             lowerMsg.includes(p.name.toLowerCase()) || 
             (p.category && lowerMsg.includes(p.category.toLowerCase()))
@@ -71,28 +86,38 @@ export const askGemini = async (message, history = [], products = []) => {
 
         if (relevantProducts.length > 0) {
             const p = relevantProducts[0];
-            const stockMsg = p.stock > 0 ? "¡Y lo mejor es que lo tengo para entrega inmediata! 🚀" : "Justo se nos acabó, pero te lo podemos fabricar igualito bajo pedido. 😊";
-            return `¡Tuviste suerte! El ${p.name} es una joya. 💎 Su valor es de $${p.price}. ${stockMsg} ¿Te gustaría que te pase el link de WhatsApp? 🎀`;
+            const stockMsg = p.stock > 0 ? "¡Y la súper noticia es que lo tengo para entrega inmediata! 🚀" : "Justo se nos agotó en la tienda, pero te lo fabrico igualito bajo pedido con el mayor amor. 😊";
+            return `¡Qué buen gusto tienes! ✨ El "${p.name}" es una joya. 💎 Cuesta $${p.price}. ${stockMsg} ¿Te gustaría que gestionemos el pedido por WhatsApp? 🎀`;
         }
 
-        if (lowerMsg.includes("lazo") || lowerMsg.includes("moño")) {
-            return "¡Nuestros lazos son nuestra firma! 🎀 Tenemos desde los clásicos escolares hasta modelos 'Gala' con cristales. ¿Buscas algún color en especial? ✨";
+        // 2.4 PREGUNTAS POR CATEGORÍA DE PRODUCTOS
+        if (lowerMsg.includes("lazo") || lowerMsg.includes("moño") || lowerMsg.includes("cintillo")) {
+            const lazosStock = availableProducts.filter(p => p.name.toLowerCase().includes("lazo") || p.name.toLowerCase().includes("moño") || p.name.toLowerCase().includes("cintillo"));
+            if (lazosStock.length > 0) {
+                 return `¡Amo hacer lazos! 🎀 Y estás de suerte, ahorita tengo disponible en tienda: "${lazosStock[0].name}" a $${lazosStock[0].price}. ¡Es súper coqueto! ¿Quieres que te pase más detalles? ✨`;
+            }
+            return "¡Nuestros lazos son la firma de Rosa Elena! 🎀 Tenemos desde coquetos parches escolares hasta modelos majestuosos de gala. Todo hecho a tu gusto. ¿Buscabas para niña grande o bebé? ✨";
         }
 
         if (lowerMsg.includes("piñata")) {
-            return "¡Las piñatas de Rosa Elena son de otro nivel! 🎂 Las hacemos en 3D, estilo tambor o tradicionales. Cuéntame de qué temática es tu fiesta para enviarte ideas. 🎈";
+            const pinatasStock = availableProducts.filter(p => p.name.toLowerCase().includes("piñat") || p.name.toLowerCase().includes("pinata"));
+            if (pinatasStock.length > 0) {
+                 return `¡Las piñatas son el alma de la fiesta! 🎈 Tengo lista para ti la de "${pinatasStock[0].name}" por $${pinatasStock[0].price}. ¿Es esa la temática que buscas, o quieres algo diferente? 🎉`;
+            }
+            return "¡Las piñatas en 3D y tambor de Rosa Elena son monumentales! 🎂 Las diseñamos bajo pedido para que tu fiesta sea inolvidable. Cuéntame, ¿qué temática te imaginas? 🎈";
         }
 
-        if (lowerMsg.includes("precio") || lowerMsg.includes("costo") || lowerMsg.includes("cuanto val")) {
-            return "¡Tenemos opciones para todos! 🌸 Los detalles pequeños empiezan en $2 y las piñatas grandes varían según el diseño. ¿De cuánto es tu presupuesto aproximado? 😊";
+        // 2.5 CONSULTAS COMERCIALES
+        if (lowerMsg.includes("precio") || lowerMsg.includes("costo") || lowerMsg.includes("cuanto val") || lowerMsg.includes("presupuesto")) {
+            return "¡Me adapto a tu presupuesto! 🌸 Tengo detallitos tan cucos como apliques desde $2, hasta grandes piñatas personalizadas. Si me dices exactamente qué te gusta, ¡te calculo rápido! 😊";
         }
 
-        if (lowerMsg.includes("personalizado") || lowerMsg.includes("pedido")) {
-            return "¡Amo los retos! 🎀 Podemos personalizar cualquier lazo o piñata con nombres, colores y temas. Es lo que más nos piden. ¿Qué idea loca tienes en mente? ✨";
+        if (lowerMsg.includes("personalizado") || lowerMsg.includes("pedido") || lowerMsg.includes("encargo")) {
+            return "¡Los retos de creatividad son mi especialidad! 🎀 Si sueñas con un lazo de cierta temática o una piñata mágica, te lo cumplo. Nombres, colores, perlas... ¡Tú mandas! ✨";
         }
 
-        if (lowerMsg.includes("donde estan") || lowerMsg.includes("ubicacion") || lowerMsg.includes("valencia")) {
-            return "Estamos ubicados en la hermosa ciudad de Valencia, Venezuela 📍. Hacemos entregas locales y envíos seguros a todo el país. 🚚💨";
+        if (lowerMsg.includes("donde estan") || lowerMsg.includes("ubicacion") || lowerMsg.includes("valencia") || lowerMsg.includes("tienda fisica")) {
+            return "Somos tienda online ubicada en el corazón de Valencia, Carabobo 📍. Hacemos entregas locales rapidísimas y envíos súper seguros a toda Venezuela. 🚚💨 ¡Tu producto llega impecable!";
         }
 
         // 4. FALLBACK "INTELIGENTE" (SI NO ENTIENDE, SIGUE SIENDO LIBRE)
