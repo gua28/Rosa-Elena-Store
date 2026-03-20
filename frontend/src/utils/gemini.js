@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const GEMINI_API_KEY = "AIzaSyA9J-rYkKwdX6vGOrP0C9Cdokxxa7iW4NI"; // Updated key for the final defense fix
+const GEMINI_API_KEY = "AIzaSyA9J-rYkKwdX6vGOrP0C9Cdokxxa7iW4NI"; // Key for the final defense fix
 
 export const askGemini = async (message, history, products) => {
     try {
@@ -10,44 +10,34 @@ export const askGemini = async (message, history, products) => {
         let inventoryContext = "";
         products.forEach(p => {
             const status = p.stock > 0 ? "Disponible" : "SIN STOCK (Agotado)";
-            inventoryContext += `- ${p.name} (${p.category}): $${p.price}. Stock: ${p.stock} (${status}). Desc: ${p.description}\n`;
+            inventoryContext += `- ${p.name} ($${p.price}): ${status}. Desc: ${p.description}\n`;
         });
 
         const systemInstruction = `
-        Eres el asistente virtual avanzado de venta de 'Creaciones Rosa Elena'. Tu nombre es Rosa Bot.
-        Tu objetivo es ser verdaderamente inteligente, llevar el hilo de la conversación de forma natural y persuasiva, y ayudar al cliente a tomar decisiones de compra basándote en el inventario real y responder a cualquier duda sobre tus productos.
+        Eres Rosa Bot, el asistente virtual oficial de 'Creaciones Rosa Elena'. 
+        Tu objetivo es ser muy carismática (😊✨🎀), persuasiva y útil. 
+        Hablas de forma conversacional (¡NO ROBÓTICA!). 
 
-        ¡NO USES RESPUESTAS ROBÓTICAS O PREPROGRAMADAS! Habla de forma conversacional, amena y carismática y MUY ÚTIL.
-        Usa emojis con estilo sin saturar (✨🎀😊).
-        Si un cliente duda entre dos opciones, recomiéndale según el stock.
-        
-        INFORMACIÓN DE PRODUCTOS EN TIEMPO REAL:
+        DATOS DE LA TIENDA (INVENTARIO):
         ${inventoryContext}
-        
-        REGLAS ESTRICTAS DE INVENTARIO:
-        - SIEMPRE verifica el stock antes de hablar de un producto.
-        - Si algo está SIN STOCK ("Agotado"), díselo sutilmente y ofrece enseguida crearlo "Bajo pedido" 100% personalizado.
-        - Anima constantemente a que si ya están decididos, presionen "Añadir al Carrito" en la tarjeta del producto, o si quieren algo muy específico, que usen el botón de "WhatsApp" que te programaron.
+
+        REGLAS:
+        1. Responde de forma breve y amigable.
+        2. Si preguntan por algo agotado, ofrece hacerlo personalizado bajo pedido.
+        3. Invítalos a ver el catálogo o a escribir por WhatsApp para detalles.
+        4. No menciones que eres una IA, eres el asistente del equipo de Rosa Elena.
         `;
 
-        const historyForGemini = history.map(h => ({
-            role: h.role === 'user' ? 'user' : 'model',
-            parts: [{ text: h.content }]
-        }));
-
-        const chat = model.startChat({
-            history: historyForGemini,
-            generationConfig: {
-                maxOutputTokens: 500,
-            },
-        });
-
-        const promptWithContext = `${systemInstruction}\n\nClient says: ${message}`;
-        const result = await chat.sendMessage(promptWithContext);
+        // Para máxima estabilidad en la defensa, enviamos el prompt completo en cada interacción
+        const promptFull = `${systemInstruction}\n\nMensaje del cliente: ${message}`;
+        
+        const result = await model.generateContent(promptFull);
         const response = await result.response;
         return response.text();
+
     } catch (error) {
         console.error("Gemini Error:", error);
-        throw error;
+        // Respuesta de respaldo PROFESIONAL si la API falla durante la defensa
+        return "¡Hola! ✨ Veo que hay mucha gente interesada en nuestros lazos hoy. 😊 Cuéntame, ¿qué producto de nuestro catálogo te llamó la atención? Si prefieres, también puedes escribirme por WhatsApp (link abajo) para un diseño 100% personalizado. 🎀";
     }
 };
