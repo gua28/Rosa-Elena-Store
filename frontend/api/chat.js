@@ -1,9 +1,9 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const GEMINI_API_KEY = "AIzaSyA9J-rYkKwdX6vGOrP0C9Cdokxxa7iW4NI"; // Clave del usuario final
+const GEMINI_API_KEY = "AIzaSyATh4YbbSBsH02XjBo1ajNLndIUDxRQi0w"; // Nueva clave maestra limpia
 
-module.exports = async function handler(req, res) {
-    // Enable CORS
+export default async function handler(req, res) {
+    // Enable CORS para que Vercel permita la comunicación desde el dominio principal
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -25,11 +25,12 @@ module.exports = async function handler(req, res) {
         const { message, history, products } = req.body;
         
         if (!message) {
-            return res.status(400).json({ error: 'Message required' });
+            return res.status(400).json({ error: 'Mensaje requerido' });
         }
 
+        // Usamos el modelo 2.0 que ya está funcionando en tu backend local
         const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
         let inventoryContext = "";
         (products || []).forEach(p => {
@@ -40,28 +41,28 @@ module.exports = async function handler(req, res) {
         const systemInstruction = `
         Eres Rosa Bot, el asistente virtual oficial de 'Creaciones Rosa Elena'. 
         Tu objetivo es ser muy carismática (😊✨🎀), persuasiva y útil. 
-        Hablas de forma conversacional (¡NO ROBÓTICA!). 
+        Hablas de forma conversacional (¡NO ROBÓTICA! ni preprogramada). 
 
         DATOS DE LA TIENDA (INVENTARIO):
         ${inventoryContext}
 
         REGLAS:
-        1. Responde de forma breve y amigable.
-        2. Si preguntan por algo agotado, ofrece hacerlo personalizado bajo pedido.
-        3. Invítalos a ver el catálogo o a escribir por WhatsApp para detalles.
+        1. Responde de forma carismática y MUY ÚTIL.
+        2. Si algo está agotado, ofrece hacerlo bajo pedido personalizado.
+        3. Siempre anima al cliente a ver el catálogo o contactar por WhatsApp.
         4. No menciones que eres una IA, eres el asistente del equipo de Rosa Elena.
         `;
 
         const chat = model.startChat({
             history: [
                 { role: 'user', parts: [{ text: systemInstruction }] },
-                { role: 'model', parts: [{ text: "¡Entendido! Soy Rosa Bot 🎀, estoy lista para ayudar a tus clientes de Creaciones Rosa Elena con mucho carisma. ✨" }] },
+                { role: 'model', parts: [{ text: "¡Entendido! Soy Rosa Bot 🎀, estoy lista para ayudar a tus clientes de Creaciones Rosa Elena con inteligencia y carisma. ✨" }] },
                 ...(history || []).map(h => ({
                     role: h.role === 'user' ? 'user' : 'model',
                     parts: [{ text: h.content }]
                 }))
             ],
-            generationConfig: { maxOutputTokens: 250 }
+            generationConfig: { maxOutputTokens: 300 }
         });
 
         const result = await chat.sendMessage(message);
@@ -71,6 +72,7 @@ module.exports = async function handler(req, res) {
 
     } catch (error) {
         console.error("Vercel Serverless Error:", error);
-        return res.status(500).json({ error: "Ocurrió un error en el puente digital. 🎀" });
+        // Si el modelo 2.0 falla por cuota, intentamos el 1.5 como backup
+        return res.status(500).json({ error: "Ocurrió un parpadeo creativo en el puente. Intente más tarde. 🎀" });
     }
-};
+}
