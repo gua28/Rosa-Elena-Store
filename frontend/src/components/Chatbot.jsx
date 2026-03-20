@@ -9,7 +9,7 @@ const Chatbot = () => {
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [messages, setMessages] = useState([
-        { id: 1, text: "¡Hola! Soy el asistente virtual de Creaciones Rosa Elena. ¿En qué puedo ayudarte hoy?", sender: 'bot' }
+        { id: 1, text: "¡Hola! ✨ Soy Rosa Bot 🎀, tu asistente de Creaciones Rosa Elena. ¿Qué cosita linda estás buscando hoy? 😊", sender: 'bot' }
     ]);
     const [products, setProducts] = useState([]);
     const messagesEndRef = useRef(null);
@@ -140,17 +140,17 @@ const Chatbot = () => {
                         {/* Header */}
                         <div className="bg-accent/95 p-5 text-white flex items-center justify-between shadow-sm">
                             <div className="flex items-center gap-3">
-                                <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
-                                    <Sparkles className="h-5 w-5" />
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-sm">Asistente Virtual</h3>
-                                    <div className="flex items-center gap-1.5 mt-0.5">
-                                        <span className="h-2 w-2 bg-green-400 rounded-full animate-pulse"></span>
-                                        <p className="text-[10px] text-white/90">En línea</p>
-                                    </div>
+                            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30 animate-pulse">
+                                <Sparkles className="h-5 w-5 text-white" />
+                            </div>
+                            <div>
+                                <h3 className="font-black text-sm text-white tracking-widest uppercase mb-0.5">Rosa Bot 🎀</h3>
+                                <div className="flex items-center gap-1.5">
+                                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-ping"></div>
+                                    <span className="text-[10px] text-white/80 font-bold uppercase tracking-widest">En Línea ✨</span>
                                 </div>
                             </div>
+                        </div>
                             <button
                                 onClick={() => setIsOpen(false)}
                                 className="p-1.5 hover:bg-white/15 rounded-lg transition-colors"
