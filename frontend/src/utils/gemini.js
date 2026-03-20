@@ -1,8 +1,8 @@
 const GEMINI_API_KEY = "AIzaSyA9J-rYkKwdX6vGOrP0C9Cdokxxa7iW4NI"; // Clave del usuario final
 
-export const askGemini = async (message, history, products) => {
+export const askGemini = async (message, history = [], products = []) => {
     try {
-        console.log("Rosa Bot intentando conectar con el cerebro de IA...");
+        console.log("Rosa Bot conectando con el cerebro de IA...");
 
         let inventoryContext = "";
         products.forEach(p => {
@@ -15,7 +15,7 @@ export const askGemini = async (message, history, products) => {
         Tu objetivo es ser muy carismática (😊✨🎀), persuasiva y útil. 
         Hablas de forma conversacional (¡NO ROBÓTICA!). 
 
-        DATOS DE LA TIENDA (INVENTARIO):
+        DATOS DE LA TIENDA (INVENTARIO ACTUAL):
         ${inventoryContext}
 
         REGLAS:
@@ -25,37 +25,47 @@ export const askGemini = async (message, history, products) => {
         4. No menciones que eres una IA, eres el asistente del equipo de Rosa Elena.
         `;
 
-        const promptFull = `${systemInstruction}\n\nMensaje del cliente: ${message}`;
+        // Formatear el historial correctamente para Gemini API v1beta
+        const contents = [
+            {
+                role: 'user',
+                parts: [{ text: systemInstruction }]
+            },
+            {
+                role: 'model',
+                parts: [{ text: "¡Entendido! Soy Rosa Bot 🎀, estoy lista para ayudar a tus clientes con todo el cariño y profesionalismo de Creaciones Rosa Elena. 😊✨" }]
+            },
+            ...history.map(h => ({
+                role: h.role === 'user' ? 'user' : 'model',
+                parts: [{ text: h.content }]
+            })),
+            {
+                role: 'user',
+                parts: [{ text: message }]
+            }
+        ];
 
-        // USAMOS FETCH DIRECTO PARA EVITAR ERRORES DE LIBRERÍA EN VERCEL
         const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
         
         const response = await fetch(API_URL, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{ text: promptFull }]
-                }]
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents })
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            console.error("Gemini API Error details:", errorData);
-            throw new Error(`Gemini API Error: ${response.status}`);
+            const error = await response.json();
+            console.error("Gemini Error:", error);
+            throw new Error("Error en API de Google");
         }
 
         const data = await response.json();
-        const reply = data.candidates[0].content.parts[0].text;
+        const reply = data.candidates[0]?.content?.parts[0]?.text;
         
-        return reply || "¡Hola! ✨ Cuéntame, ¿qué producto de nuestro catálogo te gustó? Estamos para ayudarte. 🎀";
+        return reply || "¡Hola! ✨ Cuéntame, ¿qué producto te gustó? Estoy aquí para ayudarte. 🎀";
 
     } catch (error) {
-        console.error("Rosa Bot fallback activated:", error);
-        // Respuesta de respaldo PROFESIONAL si la API falla durante la defensa
-        return "¡Hola! ✨ Veo que hay mucha gente interesada en nuestros lazos hoy. 😊 Cuéntame, ¿qué producto de nuestro catálogo te llamó la atención? Si prefieres, también puedes escribirme por WhatsApp (link abajo) para un diseño 100% personalizado. 🎀";
+        console.error("Rosa Bot Fallback:", error);
+        return "¡Hola! ✨ He tenido un pequeño 'parpadeo' creativo con tantas ideas. 😊 ¿Podrías repetirme tu consultita? O si prefieres, escríbenos por WhatsApp (link abajo) para atenderte personalmente. 🎀";
     }
 };
