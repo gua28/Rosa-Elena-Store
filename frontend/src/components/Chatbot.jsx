@@ -55,20 +55,39 @@ const Chatbot = () => {
         }
 
         try {
-            // Enviamos el historial EXCLUYENDO el último mensaje que acabamos de añadir al estado local
-            const historyForGemini = messages
-                .filter(m => m.id !== newUserMessage.id) 
-                .map(m => ({
-                    role: m.sender === 'user' ? 'user' : 'bot',
-                    content: m.text
-                }));
+            const GEMINI_API_KEY = "AIzaSyA9J-rYkKwdX6vGOrP0C9Cdokxxa7iW4NI";
+            
+            let inventoryContext = "";
+            products.forEach(p => {
+                const status = (p.stock > 0) ? "Disponible" : "SIN STOCK (Agotado)";
+                inventoryContext += `- ${p.name} ($${p.price}): ${status}. Desc: ${p.description}\n`;
+            });
 
-            const replyText = await askGemini(text, historyForGemini, products);
+            const systemInstruction = `Eres Rosa Bot, el asistente virtual oficial de 'Creaciones Rosa Elena'. Tu objetivo es ser carismática (😊✨🎀), persuasiva y útil. 
+            DATOS DE LA TIENDA (INVENTARIO): ${inventoryContext}
+            REGLAS:
+            1. Responde de forma breve y amigable.
+            2. Si preguntan por algo agotado, ofrece hacerlo personalizado bajo pedido.
+            3. Invítalos a ver el catálogo o a escribir por WhatsApp para detalles.
+            4. No menciones que eres una IA, eres el asistente del equipo de Rosa Elena.`;
 
-            // Auto-detect if AI wants to show WhatsApp button
-            const needsWhatsapp = replyText.toLowerCase().includes('whatsapp') ||
-                replyText.toLowerCase().includes('bajo pedido') ||
-                replyText.toLowerCase().includes('escribenos');
+            const promptFull = `${systemInstruction}\n\nMensaje del cliente: ${text}`;
+            const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+            
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: promptFull }] }] })
+            });
+
+            if (!response.ok) throw new Error(`Gemini status ${response.status}`);
+            const data = await response.json();
+            const replyText = data.candidates[0].content.parts[0].text || "¡Hola! ✨ Cuéntame, ¿qué producto de nuestro catálogo te gustó? Estamos para ayudarte. 🎀";
+
+            // Detect if AI mentions contact info
+            const needsWhatsapp = replyText.toLowerCase().includes('whatsapp') || 
+                                replyText.toLowerCase().includes('personalizado') ||
+                                replyText.toLowerCase().includes('pedido');
 
             setMessages(prev => [...prev, {
                 id: Date.now() + 1,
@@ -77,11 +96,12 @@ const Chatbot = () => {
                 showWhatsAppBtn: needsWhatsapp
             }]);
         } catch (error) {
-            console.error("Error al conectar con la IA:", error);
+            console.error("Gemini Error:", error);
             setMessages(prev => [...prev, {
                 id: Date.now() + 1,
-                text: "Uy, tuve un pequeño parpadeo intentando conectarme con mi cerebro de IA. 🎀 ¿Podrías repetirlo?",
-                sender: 'bot'
+                text: "¡Hola! ✨ Veo que hay mucha gente interesada en nuestros lazos hoy. 😊 Cuéntame, ¿qué producto de nuestro catálogo te llamó la atención? Si prefieres, también puedes escribirme por WhatsApp (link abajo) para un diseño 100% personalizado o si algo está agotado. 🎀",
+                sender: 'bot',
+                showWhatsAppBtn: true
             }]);
         } finally {
             setIsTyping(false);
