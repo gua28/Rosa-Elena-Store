@@ -123,12 +123,11 @@ function LoginPage({ onBack, onLogin, onGoToRegister }) {
                                 onSuccess={async (credentialResponse) => {
                                     setIsLoading(true);
                                     try {
-                                        // Simple Google Login simulation for now:
-                                        // In a real app we would use supabase.auth.signInWithOAuth
-                                        // But to keep sync with our custom 'users' table:
+                                        // Use the Google credential to get user info
                                         const response = await fetch(`https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=${credentialResponse.credential}`);
                                         const googleUser = await response.json();
                                         
+                                        // Check if the user exists in our DB
                                         const { data, error } = await supabase
                                             .from('users')
                                             .select('*')
@@ -138,18 +137,20 @@ function LoginPage({ onBack, onLogin, onGoToRegister }) {
                                         if (data) {
                                             onLogin(data);
                                         } else {
-                                            // Create user if not exists
-                                            const { data: newUser, error: regError } = await supabase
+                                            // Register as client if not found
+                                            const { data: newUser } = await supabase
                                                 .from('users')
-                                                .insert([{ email: googleUser.email, name: googleUser.name, role: 'client' }])
+                                                .insert([{ 
+                                                    email: googleUser.email, 
+                                                    name: googleUser.name, 
+                                                    role: 'client' 
+                                                }])
                                                 .select()
                                                 .single();
-                                            
-                                            if (newUser) onLogin(newUser);
-                                            else setError('Error al crear cuenta de Google');
+                                            onLogin(newUser);
                                         }
                                     } catch (err) {
-                                        setError('Error al verificar identidad de Google');
+                                        setError('Error al sincronizar con tu cuenta de Google');
                                     } finally {
                                         setIsLoading(false);
                                     }
