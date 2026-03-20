@@ -90,27 +90,46 @@ const CartDrawer = ({ isOpen, onClose, cart, onRemove, user, onOrderComplete, se
 
         setIsUploading(true);
         try {
-            const fileName = `${Date.now()}_${file.name}`;
-            const { data, error } = await supabase.storage
-                .from('receipts') // Ensure this bucket exists in Supabase
-                .upload(fileName, file);
-
-            if (error) {
-                // If bucket doesn't exist, we'll try a fallback or alert
-                if (error.message.includes('bucket not found')) {
-                    alert('Error: El contenedor "receipts" no existe en Supabase Storage. Créalo para permitir subir comprobantes.');
-                }
-                throw error;
-            }
-
-            const { data: { publicUrl } } = supabase.storage
-                .from('receipts')
-                .getPublicUrl(fileName);
-
-            setReceiptUrl(publicUrl);
+            // SOLUCIÓN: Usar conversión a Base64 local para evitar problemas con buckets de Supabase.
+            // Redimensionamos la imagen para que sea súper ligera y no sature la base de datos.
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 600;
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > MAX_WIDTH) {
+                        height = Math.round((height * MAX_WIDTH) / width);
+                        width = MAX_WIDTH;
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Comprimir la imagen al 60% de calidad en JPEG
+                    const base64String = canvas.toDataURL('image/jpeg', 0.6);
+                    setReceiptUrl(base64String);
+                    setIsUploading(false);
+                };
+                img.onerror = () => {
+                   alert('Error al procesar la imagen.');
+                   setIsUploading(false);
+                };
+            };
+            reader.onerror = () => {
+                alert('Error al cargar el archivo original.');
+                setIsUploading(false);
+            };
         } catch (err) {
             console.error('Upload error:', err);
-        } finally {
+            alert('Ha ocurrido un error inesperado al subir el comprobante.');
             setIsUploading(false);
         }
     };
