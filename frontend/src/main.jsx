@@ -4,7 +4,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google'
 import './index.css'
 import App from './App.jsx'
 
-const GOOGLE_CLIENT_ID = "731998525046-3j0rvs1e8eb9v2m0j5c6p7v8p9q0r1s2.apps.googleusercontent.com"; // Placeholder
+const GOOGLE_CLIENT_ID = "409884072531-sl9t41hb5aehdj116pa2humjdj8qvt6k.apps.googleusercontent.com"; // Final correct ID for the defense
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
