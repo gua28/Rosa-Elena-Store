@@ -1,8 +1,13 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
 const GEMINI_API_KEY = "AIzaSyA9J-rYkKwdX6vGOrP0C9Cdokxxa7iW4NI"; // Clave del usuario final
 
 export const askGemini = async (message, history = [], products = []) => {
     try {
-        console.log("Rosa Bot conectando con el cerebro de IA...");
+        console.log("Rosa Bot conectando con el cerebro oficial de Google...");
+
+        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         let inventoryContext = "";
         products.forEach(p => {
@@ -15,7 +20,7 @@ export const askGemini = async (message, history = [], products = []) => {
         Tu objetivo es ser muy carismática (😊✨🎀), persuasiva y útil. 
         Hablas de forma conversacional (¡NO ROBÓTICA!). 
 
-        DATOS DE LA TIENDA (INVENTARIO ACTUAL):
+        DATOS DE LA TIENDA (INVENTARIO):
         ${inventoryContext}
 
         REGLAS:
@@ -25,47 +30,35 @@ export const askGemini = async (message, history = [], products = []) => {
         4. No menciones que eres una IA, eres el asistente del equipo de Rosa Elena.
         `;
 
-        // Formatear el historial correctamente para Gemini API v1beta
-        const contents = [
-            {
-                role: 'user',
-                parts: [{ text: systemInstruction }]
-            },
-            {
-                role: 'model',
-                parts: [{ text: "¡Entendido! Soy Rosa Bot 🎀, estoy lista para ayudar a tus clientes con todo el cariño y profesionalismo de Creaciones Rosa Elena. 😊✨" }]
-            },
-            ...history.map(h => ({
-                role: h.role === 'user' ? 'user' : 'model',
-                parts: [{ text: h.content }]
-            })),
-            {
-                role: 'user',
-                parts: [{ text: message }]
-            }
-        ];
+        // Formatear el historial para el SDK oficial
+        // Debe alternar entre user y model.
+        const chatHistory = history.map(h => ({
+            role: h.role === 'user' ? 'user' : 'model',
+            parts: [{ text: h.content }]
+        }));
 
-        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-        
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents })
+        const chat = model.startChat({
+            history: [
+                {
+                    role: 'user',
+                    parts: [{ text: systemInstruction }]
+                },
+                {
+                    role: 'model',
+                    parts: [{ text: "¡Entendido! Soy Rosa Bot 🎀, estoy lista para ayudar a tus clientes de Creaciones Rosa Elena con mucho carisma. ✨" }]
+                },
+                ...chatHistory
+            ],
+            generationConfig: { maxOutputTokens: 250 }
         });
 
-        if (!response.ok) {
-            const error = await response.json();
-            console.error("Gemini Error:", error);
-            throw new Error("Error en API de Google");
-        }
-
-        const data = await response.json();
-        const reply = data.candidates[0]?.content?.parts[0]?.text;
+        const result = await chat.sendMessage(message);
+        const responseText = result.response.text();
         
-        return reply || "¡Hola! ✨ Cuéntame, ¿qué producto te gustó? Estoy aquí para ayudarte. 🎀";
+        return responseText || "¡Hola! ✨ ¿En qué puedo ayudarte hoy?";
 
     } catch (error) {
-        console.error("Rosa Bot Fallback:", error);
-        return "¡Hola! ✨ He tenido un pequeño 'parpadeo' creativo con tantas ideas. 😊 ¿Podrías repetirme tu consultita? O si prefieres, escríbenos por WhatsApp (link abajo) para atenderte personalmente. 🎀";
+        console.error("Rosa Bot SDK Error:", error);
+        return "¡Uy! ✨ Tuve un pequeño 'parpadeo' creativo con tantas ideas digitales. 😊 ¿Me podrías repetir tu consultita? ¡Gracias! 🎀";
     }
 };
