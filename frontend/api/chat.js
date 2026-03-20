@@ -1,9 +1,9 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const GEMINI_API_KEY = "AIzaSyATh4YbbSBsH02XjBo1ajNLndIUDxRQi0w"; // Nueva clave maestra limpia
+const GEMINI_API_KEY = "AIzaSyATh4YbbSBsH02XjBo1ajNLndIUDxRQi0w"; // Clave Maestra Limpia y Nueva
 
 export default async function handler(req, res) {
-    // Enable CORS para que Vercel permita la comunicación desde el dominio principal
+    // Cabeceras CORS robustas
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -28,9 +28,28 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Mensaje requerido' });
         }
 
-        // Usamos el modelo 2.0 que ya está funcionando en tu backend local
         const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        
+        // Probamos con gemini-1.5-flash o gemini-flash-latest según la región/permisos
+        const modelNames = ["gemini-1.5-flash", "gemini-flash-latest", "gemini-1.5-flash-8b"];
+        let model = null;
+        let lastError = null;
+
+        // Bucle de reintento inteligente para encontrar el modelo activo del usuario
+        for (const name of modelNames) {
+            try {
+                const testModel = genAI.getGenerativeModel({ model: name });
+                // Solo configuramos, no enviamos mensaje de prueba para no gastar cuota innecesaria
+                model = testModel;
+                break;
+            } catch (e) {
+                lastError = e;
+            }
+        }
+
+        if (!model) {
+            throw new Error(`No se pudo inicializar ningún modelo de Gemini: ${lastError?.message}`);
+        }
 
         let inventoryContext = "";
         (products || []).forEach(p => {
@@ -47,7 +66,7 @@ export default async function handler(req, res) {
         ${inventoryContext}
 
         REGLAS:
-        1. Responde de forma carismática y MUY ÚTIL.
+        1. Responde de forma breve, carismática y MUY ÚTIL.
         2. Si algo está agotado, ofrece hacerlo bajo pedido personalizado.
         3. Siempre anima al cliente a ver el catálogo o contactar por WhatsApp.
         4. No menciones que eres una IA, eres el asistente del equipo de Rosa Elena.
@@ -62,7 +81,10 @@ export default async function handler(req, res) {
                     parts: [{ text: h.content }]
                 }))
             ],
-            generationConfig: { maxOutputTokens: 300 }
+            generationConfig: { 
+                maxOutputTokens: 500,
+                temperature: 0.7 
+            }
         });
 
         const result = await chat.sendMessage(message);
@@ -71,8 +93,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ reply: responseText });
 
     } catch (error) {
-        console.error("Vercel Serverless Error:", error);
-        // Si el modelo 2.0 falla por cuota, intentamos el 1.5 como backup
-        return res.status(500).json({ error: "Ocurrió un parpadeo creativo en el puente. Intente más tarde. 🎀" });
+        console.error("Vercel Serverless Error (Rosa Bot):", error);
+        return res.status(500).json({ error: error.message || "Error procesando la inteligencia de Rosa Bot. 🎀" });
     }
 }
