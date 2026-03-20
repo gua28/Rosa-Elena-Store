@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AIzaSyB2dyWD3XkcpSvGosu1NRLsrMxEty8SRVM"; // Clave Nueva Segura
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // ¡SOLO SE LEE DEL ENTORNO SEGURO!
 
 export default async function handler(req, res) {
     // Cabeceras CORS Blindadas
