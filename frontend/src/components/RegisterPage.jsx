@@ -27,26 +27,49 @@ const RegisterPage = ({ onBack, onRegisterSuccess }) => {
 
         setIsLoading(true);
         try {
-            // Direct insertion into the 'users' table (no auth.signUp for now)
-            const { data, error: dbError } = await supabase
+            // 1. Registro oficial en Supabase Auth.
+            // Esto automáticamente gatilla el envío del correo de confirmación al Gmail/Outlook del usuario.
+            const { data: authData, error: authError } = await supabase.auth.signUp({
+                email: formData.email.toLowerCase(),
+                password: formData.password,
+                options: {
+                    data: {
+                        name: formData.name
+                    }
+                }
+            });
+
+            if (authError) {
+                // Mensajes de error amigables
+                if (authError.message.includes('already registered')) {
+                     throw new Error('Este correo ya está registrado.');
+                }
+                throw authError;
+            }
+
+            // 2. Guardamos sus datos completos en la base de datos (Retrocompatibilidad)
+            const { error: dbError } = await supabase
                 .from('users')
                 .insert([{
                     email: formData.email.toLowerCase(),
-                    password: formData.password,
+                    password: formData.password, // Solo para compatibilidad de sistema
                     name: formData.name,
                     role: 'client',
                     phone: formData.phone,
                     address: formData.address
-                }])
-                .select()
-                .single();
+                }]);
 
-            if (dbError) throw dbError;
+            if (dbError) {
+                console.warn("Aviso en guardado retrocompatible:", dbError);
+                // Si da error de duplicate key, lo ignoramos, significa que el usuario
+                // ya existía pero está haciendo un nuevo registro (ej. borró auth)
+            }
 
-            alert('¡Registro exitoso! Ya puedes iniciar sesión.');
+            // Avisamos al usuario que debe ir a verificar su bandeja de entrada
+            alert('¡Registro casi listo! 📩\n\nTe hemos enviado un correo de verificación. Por favor, revisa tu bandeja principal y la de SPAM. Tienes que hacer click en el enlace para poder iniciar sesión.');
             onBack();
         } catch (err) {
-            setError(err.message || 'Error en el registro');
+            setError(err.message || 'Ha ocurrido un error en el registro.');
         } finally {
             setIsLoading(false);
         }

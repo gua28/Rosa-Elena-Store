@@ -14,23 +14,59 @@ function LoginPage({ onBack, onLogin, onGoToRegister }) {
         setIsLoading(true);
 
         try {
-            // Direct check against our 'users' table
-            // This bypasses Supabase Auth's internal system to use the credentials we recovered
-            const { data, error: dbError } = await supabase
-                .from('users')
-                .select('*')
-                .eq('email', credentials.email.toLowerCase())
-                .eq('password', credentials.password)
-                .single();
+            // 1. Intentamos el inicio de sesión seguro y oficial con Supabase Auth
+            // Esto es lo que verifica si el correo fue confirmado
+            const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+                email: credentials.email.toLowerCase(),
+                password: credentials.password
+            });
 
-            if (dbError || !data) {
-                setError('Credenciales incorrectas (Verifique email y contraseña)');
+            if (authError) {
+                // Si el error es específicamente que NO ha verificado el email:
+                if (authError.message.includes('Email not confirmed') || authError.message.includes('verificar')) {
+                    setError('Debes verificar tu correo primero. Revisa tu bandeja de entrada o SPAM para confirmar el enlace que te enviamos.');
+                    return;
+                }
+
+                // 2. FALLBACK RETROCOMPATIBLE:
+                // Si falló por otra razón (ej. es una cuenta antigua admin que no está en Auth, solo en la tabla 'users')
+                const { data: oldUser, error: oldError } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('email', credentials.email.toLowerCase())
+                    .eq('password', credentials.password)
+                    .single();
+
+                if (oldError || !oldUser) {
+                    setError('Credenciales incorrectas (Verifique email y contraseña)');
+                    return;
+                }
+
+                // Exito con cuenta antigua
+                onLogin(oldUser);
                 return;
             }
 
-            // Successful login
-            onLogin(data);
+            // 3. Si Auth tuvo éxito (correo verificado exitosamente):
+            // Recuperamos sus demás datos (dirección, teléfono) de la tabla 'users'
+            const { data: dbUser, error: dbError } = await supabase
+                .from('users')
+                .select('*')
+                .eq('email', credentials.email.toLowerCase())
+                .single();
 
+            if (dbError || !dbUser) {
+                 // Si no lo hallamos en public.users, creamos una sesión mínima.
+                 onLogin({ 
+                     email: authData.user.email, 
+                     role: 'client', 
+                     name: authData.user.user_metadata?.name || 'Cliente' 
+                 });
+                 return;
+            }
+
+            // Login exitoso
+            onLogin(dbUser);
         } catch (err) {
             setError('Error al conectar con la base de datos');
         } finally {
