@@ -123,8 +123,15 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
             setIsLoading(false); // UI is now usable
 
             // Stage 2: Background Data (Inventory)
-            const { data: historyData, error: historyError } = await supabase.from('inventory_logs').select('*').order('timestamp', { ascending: false });
-            if (historyError) throw historyError;
+            const { data: historyData, error: historyError } = await supabase.from('inventory_logs')
+                .select('*')
+                .order('timestamp', { ascending: false })
+                .limit(200); // Limitamos a los últimos 200 para mejorar rendimiento
+
+            if (historyError) {
+                console.error('History fetch error:', historyError);
+                // No lanzamos error para que el resto del panel funcione
+            }
 
             // Simple report calculation logic that was in backend
             const reportData = {
@@ -177,7 +184,7 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
             if (updateError) throw updateError;
             
             // Log the change
-            await supabase.from('inventory_logs').insert([{
+            const { error: logError } = await supabase.from('inventory_logs').insert([{
                 product_id: id,
                 product_name: product?.name || '---',
                 admin_name: user?.name || 'Administrador',
@@ -188,8 +195,14 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                 timestamp: new Date().toISOString()
             }]);
 
-            // Refrescar todo DESPUÉS de loguear
-            fetchData();
+            if (logError) {
+                console.warn('Logging error:', logError);
+                // Si falla el log, avisamos pero no bloqueamos la actualización del stock física
+            }
+
+            // Refrescar todo DESPUÉS de loguear - ESPERANDO confirmación
+            await fetchData();
+            alert('Inventario actualizado y registrado.');
         } catch (error) {
             console.error('Error updating stock:', error);
             // Fallback: Si no funcionó, forzamos recarga visual
@@ -264,7 +277,7 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
             alert(isEditing ? 'Producto actualizado correctamente' : 'Producto creado con éxito');
             setIsProductModalOpen(false);
             setEditingProduct(null);
-            fetchData();
+            await fetchData();
         } catch (error) {
             console.error('Error saving product:', error);
             alert('Error al guardar el producto: ' + (error.message || 'Error desconocido'));
@@ -790,7 +803,7 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                     <div className="flex gap-2 p-1 bg-gray-200/50 rounded-2xl w-fit">
                                         <button onClick={() => setInventoryTab('list')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${inventoryTab === 'list' ? 'bg-white shadow-sm text-accent' : 'text-gray-500 hover:text-gray-700'}`}>Lista</button>
                                         <button onClick={() => setInventoryTab('report')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${inventoryTab === 'report' ? 'bg-white shadow-sm text-accent' : 'text-gray-500 hover:text-gray-700'}`}>Informes</button>
-                                        <button onClick={() => setInventoryTab('history')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${inventoryTab === 'history' ? 'bg-white shadow-sm text-accent' : 'text-gray-500 hover:text-gray-700'}`}>Histórico</button>
+                                        <button onClick={() => { setInventoryTab('history'); fetchData(); }} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${inventoryTab === 'history' ? 'bg-white shadow-sm text-accent' : 'text-gray-500 hover:text-gray-700'}`}>Histórico</button>
                                         <button onClick={() => setInventoryTab('bulk')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${inventoryTab === 'bulk' ? 'bg-white shadow-sm text-accent' : 'text-gray-500 hover:text-gray-700'}`}>Carga Masiva</button>
                                     </div>
 
@@ -846,7 +859,7 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                         }]);
                                     }
                                     alert('Inventario actualizado masivamente.');
-                                    fetchData();
+                                    await fetchData();
                                     setInventoryTab('list');
                                 }} />}
                             </div>
