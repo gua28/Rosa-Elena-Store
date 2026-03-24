@@ -183,16 +183,15 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
             const { error: updateError } = await supabase.from('products').update({ stock: newStock }).eq('id', id);
             if (updateError) throw updateError;
             
-            // Log the change
+            // Log the change - USANDO SOLO COLUMNAS EXISTENTES PARA EVITAR FALLOS
             const { error: logError } = await supabase.from('inventory_logs').insert([{
                 product_id: id,
-                product_name: product?.name || '---',
-                admin_name: user?.name || 'Administrador',
                 change_type: 'manual',
                 quantity_changed: newStock - prevStock,
                 previous_stock: prevStock,
                 new_stock: newStock,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                reason: `Modificado por ${user?.name || 'Administrador'}`
             }]);
 
             if (logError) {
@@ -264,13 +263,12 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
             if (stockChanged || !isEditing) {
                 await supabase.from('inventory_logs').insert([{
                     product_id: data.id,
-                    product_name: productData.name,
-                    admin_name: user?.name || 'Administrador',
                     change_type: isEditing ? 'manual' : 'new_product',
                     quantity_changed: isEditing ? (productData.stock - editingProduct.stock) : productData.stock,
                     previous_stock: isEditing ? editingProduct.stock : 0,
                     new_stock: productData.stock,
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    reason: `${isEditing ? 'Editado' : 'Creado'} por ${user?.name || 'Administrador'}`
                 }]);
             }
 
@@ -295,13 +293,12 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
             // Log the deletion
             supabase.from('inventory_logs').insert([{
                 product_id: id,
-                product_name: productToDelete?.name || '---',
-                admin_name: user?.name || 'Administrador',
                 change_type: 'delete',
                 quantity_changed: 0,
                 previous_stock: productToDelete?.stock || 0,
                 new_stock: 0,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                reason: `Eliminado por ${user?.name || 'Administrador'}`
             }]).then(() => {});
 
             alert('Producto eliminado exitosamente.');
@@ -832,10 +829,12 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                 )}
                                 {inventoryTab === 'history' && (
                                     <InventoryHistoryView 
-                                        logs={inventoryHistory.filter(l => 
-                                            (l.product_name || '').toLowerCase().includes(historySearch.toLowerCase()) ||
-                                            (l.change_type || '').toLowerCase().includes(historySearch.toLowerCase())
-                                        )}
+                                        logs={inventoryHistory.filter(l => {
+                                            const pName = products.find(p => p.id === l.product_id)?.name || '';
+                                            return pName.toLowerCase().includes(historySearch.toLowerCase()) ||
+                                                   (l.change_type || '').toLowerCase().includes(historySearch.toLowerCase());
+                                        })}
+                                        products={products}
                                         search={historySearch}
                                         onSearch={setHistorySearch}
                                     />
@@ -849,13 +848,12 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                         // Log each change
                                         await supabase.from('inventory_logs').insert([{
                                             product_id: p.id,
-                                            product_name: original?.name || '---',
-                                            admin_name: user?.name || 'Administrador',
                                             change_type: 'bulk_upload',
                                             quantity_changed: p.stock - (original?.stock || 0),
                                             previous_stock: original?.stock || 0,
                                             new_stock: p.stock,
-                                            timestamp: new Date().toISOString()
+                                            timestamp: new Date().toISOString(),
+                                            reason: `Carga masiva por ${user?.name || 'Administrador'}`
                                         }]);
                                     }
                                     alert('Inventario actualizado masivamente.');
@@ -1596,7 +1594,7 @@ const OrdersView = ({ orders, onSelect }) => {
     );
 };
 
-const InventoryHistoryView = ({ logs, search, onSearch }) => (
+const InventoryHistoryView = ({ logs, products, search, onSearch }) => (
     <div className="space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -1605,7 +1603,11 @@ const InventoryHistoryView = ({ logs, search, onSearch }) => (
                     type="history" 
                     title="Histórico de Movimientos de Inventario" 
                     filename="Kardex_Rosa_Elena" 
-                    data={logs} 
+                    data={logs.map(log => ({
+                        ...log,
+                        product_name: products.find(p => p.id === log.product_id)?.name || 'Producto Eliminado',
+                        admin_name: log.reason?.split(' por ')?.[1] || '---'
+                    }))} 
                 />
             </div>
             <div className="relative w-full sm:w-64">
@@ -1638,13 +1640,15 @@ const InventoryHistoryView = ({ logs, search, onSearch }) => (
                             <td className="px-6 py-4 whitespace-nowrap text-gray-500 font-medium">
                                 {log.timestamp ? new Date(log.timestamp).toLocaleString('es-VE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '---'}
                             </td>
-                            <td className="px-6 py-4 font-bold text-gray-900">{log.product_name || 'Desconocido'}</td>
+                            <td className="px-6 py-4 font-bold text-gray-900">
+                                {products.find(p => p.id === log.product_id)?.name || '---'}
+                            </td>
                             <td className="px-6 py-4">
                                 <div className="flex items-center gap-2">
                                     <div className="w-6 h-6 bg-gray-100 rounded-lg flex items-center justify-center text-[10px] font-black text-gray-400">
-                                        {(log.admin_name || 'A')[0]}
+                                        {(log.reason?.split(' por ')?.[1] || 'A')[0]}
                                     </div>
-                                    <span className="font-bold text-gray-600">{log.admin_name || '---'}</span>
+                                    <span className="font-bold text-gray-600">{log.reason?.split(' por ')?.[1] || '---'}</span>
                                 </div>
                             </td>
                             <td className="px-6 py-4">
