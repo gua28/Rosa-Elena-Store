@@ -44,6 +44,7 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
     const [configData, setConfigData] = useState({ ...settings });
     const [isSavingConfig, setIsSavingConfig] = useState(false);
     const [inventorySearch, setInventorySearch] = useState('');
+    const [orderSearch, setOrderSearch] = useState('');
 
     // Helper to calculate totals from recentOrders to ensure consistency
     const calculateLiveTotals = () => {
@@ -739,7 +740,7 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                     <div className="h-full flex items-center justify-center text-gray-400">Cargando panel...</div>
                 ) : (
                     <>
-                        {activeTab === 'stats' && <StatsView stats={stats} liveTotals={liveTotals} setMetricDetail={setMetricDetail} onDetail={(order) => { setActiveTab('orders'); setSelectedOrder(order); }} onGoToInventory={() => setActiveTab('inventory')} settings={settings} />}
+                        {activeTab === 'stats' && <StatsView stats={stats} liveTotals={liveTotals} setMetricDetail={setMetricDetail} onDetail={(order) => { setActiveTab('orders'); setSelectedOrder(order); }} settings={settings} setActiveTab={setActiveTab} setInventorySearch={setInventorySearch} setOrderSearch={setOrderSearch} />}
 
                         {activeTab === 'inventory' && (
                             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -788,7 +789,24 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                             </div>
                         )}
 
-                        {activeTab === 'orders' && <OrdersView orders={stats.recentOrders} onSelect={setSelectedOrder} />}
+                        {activeTab === 'orders' && (
+                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                                    <h2 className="text-3xl font-black text-gray-900">Gestión de Pedidos</h2>
+                                    <div className="relative w-full sm:w-64">
+                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                        <input 
+                                            type="text" 
+                                            placeholder="Buscar pedido o cliente..." 
+                                            value={orderSearch}
+                                            onChange={(e) => setOrderSearch(e.target.value)}
+                                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all font-medium"
+                                        />
+                                    </div>
+                                </div>
+                                <OrdersView orders={stats.recentOrders.filter(o => o.customer_name.toLowerCase().includes(orderSearch.toLowerCase()) || o.id.toString().includes(orderSearch))} onSelect={setSelectedOrder} />
+                            </div>
+                        )}
                         
                         {activeTab === 'settings' && (
                             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
@@ -1113,16 +1131,21 @@ const ExportButtons = ({ data, filename, title, type }) => {
     );
 };
 
-const TopCustomersChart = ({ orders }) => {
-    const customerTotals = orders
+const TopCustomersChart = ({ orders, onSelectCustomer }) => {
+    const customerData = orders
         .filter(o => o.status === 'completado')
         .reduce((acc, o) => {
-            acc[o.customer_name] = (acc[o.customer_name] || 0) + o.total;
+            if (!acc[o.customer_name]) {
+                acc[o.customer_name] = { total: 0, count: 0, orders: [] };
+            }
+            acc[o.customer_name].total += o.total;
+            acc[o.customer_name].count += 1;
+            acc[o.customer_name].orders.push(o);
             return acc;
         }, {});
 
-    const sorted = Object.entries(customerTotals)
-        .map(([name, total]) => ({ name, total }))
+    const sorted = Object.entries(customerData)
+        .map(([name, data]) => ({ name, ...data }))
         .sort((a, b) => b.total - a.total)
         .slice(0, 5);
 
@@ -1132,16 +1155,25 @@ const TopCustomersChart = ({ orders }) => {
 
     return (
         <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 mt-10">
-            <h4 className="text-[10px] font-black text-accent uppercase tracking-[0.3em] mb-8 text-center flex items-center justify-center gap-3">
-                <Users className="h-4 w-4" /> Top 5 Clientes en Ventas
-            </h4>
+            <div className="flex items-center justify-between mb-8">
+                <h4 className="text-[10px] font-black text-accent uppercase tracking-[0.3em] flex items-center gap-3">
+                    <Users className="h-4 w-4" /> Top 5 Clientes en Ventas
+                </h4>
+                <span className="text-[8px] font-bold text-gray-400 uppercase italic">Click para ver historial</span>
+            </div>
             <div className="space-y-6">
                 {sorted.map((c, i) => (
-                    <div key={i} className="space-y-2">
-                        <div className="flex justify-between items-center text-sm font-bold">
+                    <motion.button 
+                        key={i} 
+                        whileHover={{ x: 5 }}
+                        onClick={() => onSelectCustomer(c.name)}
+                        className="w-full text-left space-y-2 group"
+                    >
+                        <div className="flex justify-between items-end text-sm font-bold">
                             <span className="text-gray-700 flex items-center gap-2">
                                 <span className="w-6 h-6 bg-gray-900 text-white rounded-lg flex items-center justify-center text-[10px] font-black">{i+1}</span>
                                 {c.name}
+                                <span className="text-[9px] bg-accent/5 px-2 py-0.5 rounded-full text-accent ml-2">{c.count} pedidos</span>
                             </span>
                             <span className="text-gray-900">${c.total.toFixed(2)}</span>
                         </div>
@@ -1155,7 +1187,7 @@ const TopCustomersChart = ({ orders }) => {
                                 <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
                             </motion.div>
                         </div>
-                    </div>
+                    </motion.button>
                 ))}
             </div>
         </div>
@@ -1173,7 +1205,7 @@ const SidebarItem = ({ icon, label, active, onClick }) => (
     </button>
 );
 
-const StatsView = ({ stats, onDetail, onGoToInventory, setMetricDetail, liveTotals, settings }) => (
+const StatsView = ({ stats, onDetail, onGoToInventory, setMetricDetail, liveTotals, settings, setActiveTab, setInventorySearch, setOrderSearch }) => (
     <div className="space-y-10">
         <div className="flex items-center justify-between">
             <div>
@@ -1235,13 +1267,13 @@ const StatsView = ({ stats, onDetail, onGoToInventory, setMetricDetail, liveTota
                         {stats.alerts.out.map((name, i) => (
                             <div key={i} className="p-4 bg-red-50 text-red-700 rounded-2xl flex items-center justify-between font-bold text-sm">
                                 <span>{name} AGOTADO</span>
-                                <button onClick={onGoToInventory} className="bg-red-200 px-2 py-1 rounded-lg text-[10px] uppercase font-bold hover:bg-red-300 transition-colors">URGENTE: Reponer</button>
+                                <button onClick={() => { setInventorySearch(name); setActiveTab('inventory'); }} className="bg-red-200 px-2 py-1 rounded-lg text-[10px] uppercase font-bold hover:bg-red-300 transition-colors">URGENTE: Reponer</button>
                             </div>
                         ))}
                         {stats.alerts.low.map((name, i) => (
                             <div key={i} className="p-4 bg-amber-50 text-amber-700 rounded-2xl flex items-center justify-between font-bold text-sm">
                                 <span>{name} por agotar</span>
-                                <button onClick={onGoToInventory} className="text-[10px] uppercase underline font-bold hover:text-amber-900 transition-colors">Ver en inventario</button>
+                                <button onClick={() => { setInventorySearch(name); setActiveTab('inventory'); }} className="text-[10px] uppercase underline font-bold hover:text-amber-900 transition-colors">Ver en inventario</button>
                             </div>
                         ))}
                         {stats.alerts.out.length === 0 && stats.alerts.low.length === 0 && (
@@ -1250,7 +1282,13 @@ const StatsView = ({ stats, onDetail, onGoToInventory, setMetricDetail, liveTota
                     </div>
                 </div>
 
-                <TopCustomersChart orders={stats.recentOrders} />
+                <TopCustomersChart 
+                    orders={stats.recentOrders} 
+                    onSelectCustomer={(name) => {
+                        setOrderSearch(name);
+                        setActiveTab('orders');
+                    }}
+                />
             </div>
 
             {/* Recent Orders List */}
@@ -1661,17 +1699,31 @@ const OrderModal = ({ order, onClose, onUpdateStatus, onDelete }) => {
         formData.append('file', file);
 
         try {
-            const res = await fetch(`${API_BASE_URL}/admin/upload-image`, {
-                method: 'POST',
-                body: formData
-            });
-            const data = await res.json();
-            if (data.status === 'success') {
-                onUpdateStatus(order.id, { payment_proof: data.url });
-            }
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 600;
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > MAX_WIDTH) {
+                        height = Math.round((height * MAX_WIDTH) / width);
+                        width = MAX_WIDTH;
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const base64String = canvas.toDataURL('image/jpeg', 0.6);
+                    onUpdateStatus(order.id, { payment_proof: base64String });
+                    setUploading(false);
+                };
+            };
         } catch (err) {
             console.error('Error uploading payment proof:', err);
-        } finally {
             setUploading(false);
         }
     };
@@ -1724,9 +1776,21 @@ const OrderModal = ({ order, onClose, onUpdateStatus, onDelete }) => {
                                     <span className="font-bold text-gray-900">${(item.price * item.quantity).toFixed(2)}</span>
                                 </div>
                             ))}
-                            <div className="pt-4 mt-4 border-t border-gray-200 flex justify-between items-center">
-                                <span className="text-lg font-black text-gray-900 uppercase tracking-widest">Total</span>
-                                <span className="text-3xl font-black text-accent">${(order.total || 0).toFixed(2)}</span>
+                            <div className="pt-4 mt-4 border-t border-gray-200">
+                                <div className="flex justify-between items-center mb-1">
+                                    <span className="text-sm font-bold text-gray-500 uppercase">Subtotal</span>
+                                    <span className="text-lg font-bold text-gray-900">${(order.total || 0).toFixed(2)}</span>
+                                </div>
+                                {settings?.currency_rate && (
+                                    <div className="flex justify-between items-center py-2 bg-emerald-50 px-4 rounded-xl border border-emerald-100 mb-4">
+                                        <span className="text-[10px] font-black text-emerald-600 uppercase">Total en Bolívares</span>
+                                        <span className="text-xl font-black text-emerald-700">BS {(order.total * parseFloat(settings.currency_rate)).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between items-center border-t border-gray-100 pt-4">
+                                    <span className="text-lg font-black text-gray-900 uppercase tracking-widest">Total Factura</span>
+                                    <span className="text-3xl font-black text-accent">${(order.total || 0).toFixed(2)}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1806,17 +1870,34 @@ const ProductModal = ({ onClose, onSubmit, editingProduct, categories }) => {
         formData.append('file', file);
 
         try {
-            const res = await fetch(`${API_BASE_URL}/admin/upload-image`, {
-                method: 'POST',
-                body: formData
-            });
-            const data = await res.json();
-            if (data.status === 'success') {
-                setImageUrl(data.url);
-            }
+            // SOLUCIÓN CLIENTE: Usar Base64 para evitar depender de endpoints de servidor que fallan en cloud
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 400; // Productos no necesitan tanta resolución
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > MAX_WIDTH) {
+                        height = Math.round((height * MAX_WIDTH) / width);
+                        width = MAX_WIDTH;
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const base64String = canvas.toDataURL('image/jpeg', 0.7);
+                    setImageUrl(base64String);
+                    setUploadingImage(false);
+                };
+            };
         } catch (err) {
             console.error('Error uploading file:', err);
-        } finally {
             setUploadingImage(false);
         }
     };
