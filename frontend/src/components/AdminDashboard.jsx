@@ -258,6 +258,8 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
         try {
             const { error } = await supabase.from('products').delete().eq('id', id);
             if (error) throw error;
+            
+            alert('Producto eliminado exitosamente.');
             fetchData();
         } catch (error) {
             console.error('Error deleting product:', error);
@@ -1374,7 +1376,7 @@ const StockInput = ({ initialStock, onUpdate }) => {
     );
 };
 
-const InventoryView = ({ products, onUpdateStock, onAdd, onEdit }) => (
+const InventoryView = ({ products, onUpdateStock, onAdd, onEdit, onDelete }) => (
     <div className="space-y-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
