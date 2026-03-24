@@ -176,11 +176,8 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
             const { error: updateError } = await supabase.from('products').update({ stock: newStock }).eq('id', id);
             if (updateError) throw updateError;
             
-            // Refrescar UI inmediatamente
-            fetchData();
-
-            // Log the change (silencioso)
-            supabase.from('inventory_logs').insert([{
+            // Log the change
+            await supabase.from('inventory_logs').insert([{
                 product_id: id,
                 product_name: product?.name || '---',
                 admin_name: user?.name || 'Administrador',
@@ -189,7 +186,10 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                 previous_stock: prevStock,
                 new_stock: newStock,
                 timestamp: new Date().toISOString()
-            }]).then(() => {});
+            }]);
+
+            // Refrescar todo DESPUÉS de loguear
+            fetchData();
         } catch (error) {
             console.error('Error updating stock:', error);
             // Fallback: Si no funcionó, forzamos recarga visual
@@ -239,13 +239,29 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
         };
 
         try {
-            const { error } = editingProduct 
-                ? await supabase.from('products').update(productData).eq('id', editingProduct.id)
-                : await supabase.from('products').insert([productData]);
+            const isEditing = !!editingProduct;
+            const { error, data } = isEditing 
+                ? await supabase.from('products').update(productData).eq('id', editingProduct.id).select().single()
+                : await supabase.from('products').insert([productData]).select().single();
 
             if (error) throw error;
 
-            alert(editingProduct ? 'Producto actualizado correctamente' : 'Producto creado con éxito');
+            // Log if stock changed or it's new
+            const stockChanged = !isEditing || (editingProduct.stock !== productData.stock);
+            if (stockChanged || !isEditing) {
+                await supabase.from('inventory_logs').insert([{
+                    product_id: data.id,
+                    product_name: productData.name,
+                    admin_name: user?.name || 'Administrador',
+                    change_type: isEditing ? 'manual' : 'new_product',
+                    quantity_changed: isEditing ? (productData.stock - editingProduct.stock) : productData.stock,
+                    previous_stock: isEditing ? editingProduct.stock : 0,
+                    new_stock: productData.stock,
+                    timestamp: new Date().toISOString()
+                }]);
+            }
+
+            alert(isEditing ? 'Producto actualizado correctamente' : 'Producto creado con éxito');
             setIsProductModalOpen(false);
             setEditingProduct(null);
             fetchData();
