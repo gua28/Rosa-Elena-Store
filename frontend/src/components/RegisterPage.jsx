@@ -20,6 +20,31 @@ const RegisterPage = ({ onBack, onRegisterSuccess }) => {
         e.preventDefault();
         setError('');
 
+        if (formData.name.trim().length < 3) {
+            setError('El nombre debe tener al menos 3 caracteres');
+            return;
+        }
+
+        if (/\d/.test(formData.name)) {
+            setError('El nombre no debe contener números');
+            return;
+        }
+
+        if (formData.phone.length < 10) {
+            setError('El teléfono debe tener al menos 10 dígitos');
+            return;
+        }
+
+        if (!/^\d+$/.test(formData.phone.replace(/[\s\-\+]/g, ''))) {
+            setError('El teléfono solo debe contener números');
+            return;
+        }
+
+        if (formData.password.length < 6) {
+            setError('La contraseña debe tener al menos 6 caracteres');
+            return;
+        }
+
         if (formData.password !== formData.confirmPassword) {
             setError('Las contraseñas no coinciden');
             return;
@@ -137,10 +162,11 @@ const RegisterPage = ({ onBack, onRegisterSuccess }) => {
                                 <div className="relative">
                                     <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                                     <input
-                                        type="text"
-                                        placeholder="+58 412 1234567"
+                                        type="tel"
+                                        required
+                                        placeholder="04121234567"
                                         value={formData.phone}
-                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/[^0-9\+]/g, '') })}
                                         className="w-full bg-white/50 border border-gray-100 rounded-2xl py-4 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm sm:text-base"
                                     />
                                 </div>

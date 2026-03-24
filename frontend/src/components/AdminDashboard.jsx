@@ -43,6 +43,7 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
     const [inventoryTab, setInventoryTab] = useState('list'); // 'list', 'report', 'history', 'bulk'
     const [configData, setConfigData] = useState({ ...settings });
     const [isSavingConfig, setIsSavingConfig] = useState(false);
+    const [inventorySearch, setInventorySearch] = useState('');
 
     // Helper to calculate totals from recentOrders to ensure consistency
     const calculateLiveTotals = () => {
@@ -240,6 +241,19 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
             fetchData();
         } catch (error) {
             console.error('Error saving product:', error);
+        }
+    };
+
+    const handleDeleteProduct = async (id) => {
+        if (!window.confirm('¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer y el producto desaparecerá de la tienda.')) return;
+
+        try {
+            const { error } = await supabase.from('products').delete().eq('id', id);
+            if (error) throw error;
+            fetchData();
+        } catch (error) {
+            console.error('Error deleting product:', error);
+            alert('No se pudo eliminar el producto. Asegúrate de que no tenga pedidos asociados.');
         }
     };
 
@@ -725,19 +739,42 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                     <div className="h-full flex items-center justify-center text-gray-400">Cargando panel...</div>
                 ) : (
                     <>
-                        {activeTab === 'stats' && <StatsView stats={stats} liveTotals={liveTotals} setMetricDetail={setMetricDetail} onDetail={(order) => { setActiveTab('orders'); setSelectedOrder(order); }} onGoToInventory={() => setActiveTab('inventory')} />}
+                        {activeTab === 'stats' && <StatsView stats={stats} liveTotals={liveTotals} setMetricDetail={setMetricDetail} onDetail={(order) => { setActiveTab('orders'); setSelectedOrder(order); }} onGoToInventory={() => setActiveTab('inventory')} settings={settings} />}
 
                         {activeTab === 'inventory' && (
                             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                                 {/* Sub-navigation for Inventory */}
-                                <div className="flex gap-2 p-1 bg-gray-200/50 rounded-2xl w-fit">
-                                    <button onClick={() => setInventoryTab('list')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${inventoryTab === 'list' ? 'bg-white shadow-sm text-accent' : 'text-gray-500 hover:text-gray-700'}`}>Lista</button>
-                                    <button onClick={() => setInventoryTab('report')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${inventoryTab === 'report' ? 'bg-white shadow-sm text-accent' : 'text-gray-500 hover:text-gray-700'}`}>Informes</button>
-                                    <button onClick={() => setInventoryTab('history')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${inventoryTab === 'history' ? 'bg-white shadow-sm text-accent' : 'text-gray-500 hover:text-gray-700'}`}>Histórico</button>
-                                    <button onClick={() => setInventoryTab('bulk')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${inventoryTab === 'bulk' ? 'bg-white shadow-sm text-accent' : 'text-gray-500 hover:text-gray-700'}`}>Carga Masiva</button>
+                                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                                    <div className="flex gap-2 p-1 bg-gray-200/50 rounded-2xl w-fit">
+                                        <button onClick={() => setInventoryTab('list')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${inventoryTab === 'list' ? 'bg-white shadow-sm text-accent' : 'text-gray-500 hover:text-gray-700'}`}>Lista</button>
+                                        <button onClick={() => setInventoryTab('report')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${inventoryTab === 'report' ? 'bg-white shadow-sm text-accent' : 'text-gray-500 hover:text-gray-700'}`}>Informes</button>
+                                        <button onClick={() => setInventoryTab('history')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${inventoryTab === 'history' ? 'bg-white shadow-sm text-accent' : 'text-gray-500 hover:text-gray-700'}`}>Histórico</button>
+                                        <button onClick={() => setInventoryTab('bulk')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${inventoryTab === 'bulk' ? 'bg-white shadow-sm text-accent' : 'text-gray-500 hover:text-gray-700'}`}>Carga Masiva</button>
+                                    </div>
+
+                                    {inventoryTab === 'list' && (
+                                        <div className="relative w-full sm:w-64">
+                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                            <input 
+                                                type="text" 
+                                                placeholder="Buscar producto..." 
+                                                value={inventorySearch}
+                                                onChange={(e) => setInventorySearch(e.target.value)}
+                                                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all font-medium"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
 
-                                {inventoryTab === 'list' && <InventoryView products={products} onUpdateStock={handleUpdateStock} onAdd={() => { setEditingProduct(null); setIsProductModalOpen(true); }} onEdit={(prod) => { setEditingProduct(prod); setIsProductModalOpen(true); }} />}
+                                {inventoryTab === 'list' && (
+                                    <InventoryView 
+                                        products={products.filter(p => p.name.toLowerCase().includes(inventorySearch.toLowerCase()) || p.category.toLowerCase().includes(inventorySearch.toLowerCase()))} 
+                                        onUpdateStock={handleUpdateStock} 
+                                        onAdd={() => { setEditingProduct(null); setIsProductModalOpen(true); }} 
+                                        onEdit={(prod) => { setEditingProduct(prod); setIsProductModalOpen(true); }}
+                                        onDelete={handleDeleteProduct}
+                                    />
+                                )}
                                 {inventoryTab === 'history' && <InventoryHistoryView logs={inventoryHistory} />}
                                 {inventoryTab === 'report' && <InventoryReportView report={inventoryReport} />}
                                 {inventoryTab === 'bulk' && <InventoryBulkView products={products} onBulkUpdate={async (data) => {
@@ -779,8 +816,24 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                         </div>
                                     </div>
                                     <div className="bg-white p-8 rounded-[2rem] border border-accent/10 shadow-sm space-y-6 md:col-span-2">
-                                        <h3 className="text-lg font-black text-accent flex items-center gap-2 uppercase tracking-widest">Contacto</h3>
+                                        <h3 className="text-lg font-black text-accent flex items-center gap-2 uppercase tracking-widest">Ajustes de Moneda & Contacto</h3>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="col-span-1 md:col-span-2 bg-accent/5 p-4 rounded-2xl border border-accent/20 mb-2">
+                                                <label className="text-xs font-black text-accent uppercase tracking-widest mb-2 block">Tasa de Cambio (BS por 1$)</label>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="font-bold text-gray-500">1$ = </span>
+                                                    <input 
+                                                        type="number" 
+                                                        step="0.01"
+                                                        placeholder="Ej: 36.50" 
+                                                        value={configData.currency_rate || ''} 
+                                                        onChange={(e) => setConfigData({...configData, currency_rate: e.target.value})} 
+                                                        className="flex-grow bg-white border border-accent/20 rounded-xl p-3 font-black text-accent text-xl focus:ring-2 focus:ring-accent/20 outline-none" 
+                                                    />
+                                                    <span className="font-bold text-gray-500">BS</span>
+                                                </div>
+                                                <p className="text-[10px] text-gray-400 mt-2 italic">* Esta tasa se usará para mostrar los montos en Bolívares en el carrito de compras.</p>
+                                            </div>
                                             <input type="text" placeholder="Dirección" value={configData.contact_address || ''} onChange={(e) => setConfigData({...configData, contact_address: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 font-bold text-gray-800" />
                                             <input type="text" placeholder="Instagram User" value={configData.contact_instagram || ''} onChange={(e) => setConfigData({...configData, contact_instagram: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 font-bold text-gray-800" />
                                             <input type="text" placeholder="Instagram URL" value={configData.contact_instagram_url || ''} onChange={(e) => setConfigData({...configData, contact_instagram_url: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 font-bold text-gray-800" />
@@ -1060,7 +1113,54 @@ const ExportButtons = ({ data, filename, title, type }) => {
     );
 };
 
-// --- Sub-components ---
+const TopCustomersChart = ({ orders }) => {
+    const customerTotals = orders
+        .filter(o => o.status === 'completado')
+        .reduce((acc, o) => {
+            acc[o.customer_name] = (acc[o.customer_name] || 0) + o.total;
+            return acc;
+        }, {});
+
+    const sorted = Object.entries(customerTotals)
+        .map(([name, total]) => ({ name, total }))
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 5);
+
+    if (sorted.length === 0) return null;
+
+    const maxTotal = sorted[0].total || 1;
+
+    return (
+        <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 mt-10">
+            <h4 className="text-[10px] font-black text-accent uppercase tracking-[0.3em] mb-8 text-center flex items-center justify-center gap-3">
+                <Users className="h-4 w-4" /> Top 5 Clientes en Ventas
+            </h4>
+            <div className="space-y-6">
+                {sorted.map((c, i) => (
+                    <div key={i} className="space-y-2">
+                        <div className="flex justify-between items-center text-sm font-bold">
+                            <span className="text-gray-700 flex items-center gap-2">
+                                <span className="w-6 h-6 bg-gray-900 text-white rounded-lg flex items-center justify-center text-[10px] font-black">{i+1}</span>
+                                {c.name}
+                            </span>
+                            <span className="text-gray-900">${c.total.toFixed(2)}</span>
+                        </div>
+                        <div className="w-full bg-gray-50 h-3 rounded-full overflow-hidden border border-gray-100">
+                            <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ width: `${(c.total / maxTotal) * 100}%` }}
+                                transition={{ duration: 1, delay: i * 0.1 }}
+                                className="h-full bg-accent relative overflow-hidden"
+                            >
+                                <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                            </motion.div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
 
 const SidebarItem = ({ icon, label, active, onClick }) => (
     <button
@@ -1073,12 +1173,25 @@ const SidebarItem = ({ icon, label, active, onClick }) => (
     </button>
 );
 
-const StatsView = ({ stats, onDetail, onGoToInventory, setMetricDetail, liveTotals }) => (
+const StatsView = ({ stats, onDetail, onGoToInventory, setMetricDetail, liveTotals, settings }) => (
     <div className="space-y-10">
         <div className="flex items-center justify-between">
-            <h2 className="text-3xl font-black text-gray-900">Resumen General</h2>
-            <div className="bg-white px-4 py-2 rounded-2xl shadow-sm flex items-center gap-2 text-sm font-bold text-gray-500">
-                {new Date().toLocaleDateString('es-VE', { weekday: 'long', day: 'numeric', month: 'long' })}
+            <div>
+                <h2 className="text-3xl font-black text-gray-900">Resumen General</h2>
+                <div className="flex items-center gap-2 mt-1">
+                    <Database className="h-3 w-3 text-emerald-500" />
+                    <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">Base de Datos Encriptada & Segura</span>
+                </div>
+            </div>
+            <div className="flex flex-col items-end gap-1">
+                <div className="bg-white px-4 py-2 rounded-2xl shadow-sm flex items-center gap-2 text-sm font-bold text-gray-500">
+                    {new Date().toLocaleDateString('es-VE', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </div>
+                {settings.currency_rate && (
+                    <div className="px-3 py-1 bg-accent/10 rounded-xl text-accent text-[9px] font-black uppercase tracking-tighter">
+                        Tasa: 1$ = {settings.currency_rate} BS
+                    </div>
+                )}
             </div>
         </div>
 
@@ -1113,27 +1226,31 @@ const StatsView = ({ stats, onDetail, onGoToInventory, setMetricDetail, liveTota
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Alerts */}
-            <div className="glass p-8 rounded-[2.5rem] bg-white shadow-sm border-white">
-                <h3 className="text-xl font-bold mb-6 flex items-center gap-3">
-                    <AlertTriangle className="text-amber-500 h-6 w-6" /> Alertas de Inventario
-                </h3>
-                <div className="space-y-4">
-                    {stats.alerts.out.map((name, i) => (
-                        <div key={i} className="p-4 bg-red-50 text-red-700 rounded-2xl flex items-center justify-between font-bold text-sm">
-                            <span>{name} AGOTADO</span>
-                            <button onClick={onGoToInventory} className="bg-red-200 px-2 py-1 rounded-lg text-[10px] uppercase font-bold hover:bg-red-300 transition-colors">URGENTE: Reponer</button>
-                        </div>
-                    ))}
-                    {stats.alerts.low.map((name, i) => (
-                        <div key={i} className="p-4 bg-amber-50 text-amber-700 rounded-2xl flex items-center justify-between font-bold text-sm">
-                            <span>{name} por agotar</span>
-                            <button onClick={onGoToInventory} className="text-[10px] uppercase underline font-bold hover:text-amber-900 transition-colors">Ver en inventario</button>
-                        </div>
-                    ))}
-                    {stats.alerts.out.length === 0 && stats.alerts.low.length === 0 && (
-                        <p className="text-center py-10 text-gray-400">No hay alertas pendientes</p>
-                    )}
+            <div className="flex flex-col gap-6">
+                <div className="glass p-8 rounded-[2.5rem] bg-white shadow-sm border-white h-fit">
+                    <h3 className="text-xl font-bold mb-6 flex items-center gap-3">
+                        <AlertTriangle className="text-amber-500 h-6 w-6" /> Alertas de Inventario
+                    </h3>
+                    <div className="space-y-4">
+                        {stats.alerts.out.map((name, i) => (
+                            <div key={i} className="p-4 bg-red-50 text-red-700 rounded-2xl flex items-center justify-between font-bold text-sm">
+                                <span>{name} AGOTADO</span>
+                                <button onClick={onGoToInventory} className="bg-red-200 px-2 py-1 rounded-lg text-[10px] uppercase font-bold hover:bg-red-300 transition-colors">URGENTE: Reponer</button>
+                            </div>
+                        ))}
+                        {stats.alerts.low.map((name, i) => (
+                            <div key={i} className="p-4 bg-amber-50 text-amber-700 rounded-2xl flex items-center justify-between font-bold text-sm">
+                                <span>{name} por agotar</span>
+                                <button onClick={onGoToInventory} className="text-[10px] uppercase underline font-bold hover:text-amber-900 transition-colors">Ver en inventario</button>
+                            </div>
+                        ))}
+                        {stats.alerts.out.length === 0 && stats.alerts.low.length === 0 && (
+                            <p className="text-center py-10 text-gray-400">No hay alertas pendientes</p>
+                        )}
+                    </div>
                 </div>
+
+                <TopCustomersChart orders={stats.recentOrders} />
             </div>
 
             {/* Recent Orders List */}
@@ -1280,7 +1397,10 @@ const InventoryView = ({ products, onUpdateStock, onAdd, onEdit }) => (
                                 </div>
                             </td>
                             <td className="px-8 py-6 text-right">
-                                <button onClick={() => onEdit(prod)} className="p-3 text-gray-400 hover:text-accent rounded-xl hover:bg-accent/5 transition-all"><Edit2 className="h-5 w-5" /></button>
+                                <div className="flex items-center justify-end gap-2">
+                                    <button onClick={() => onEdit(prod)} className="p-3 text-gray-400 hover:text-accent rounded-xl hover:bg-accent/5 transition-all"><Edit2 className="h-5 w-5" /></button>
+                                    <button onClick={() => onDelete(prod.id)} className="p-3 text-gray-400 hover:text-red-500 rounded-xl hover:bg-red-50 transition-all"><Trash2 className="h-5 w-5" /></button>
+                                </div>
                             </td>
                         </tr>
                     ))}

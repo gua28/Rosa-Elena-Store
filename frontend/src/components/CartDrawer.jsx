@@ -242,10 +242,20 @@ const CartDrawer = ({ isOpen, onClose, cart, onRemove, user, onOrderComplete, se
                             {/* STEP 2: PAYMENT */}
                             {step === 'payment' && (
                                 <div className="p-6 space-y-8">
-                                    <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl text-center">
-                                        <p className="text-[10px] font-black uppercase text-emerald-600 tracking-widest mb-1">Monto a Transferir</p>
-                                        <p className="text-3xl font-black text-emerald-700">${total.toFixed(2)}</p>
-                                        <p className="text-[10px] text-emerald-600/70 font-bold mt-1">ID PEDIDO: #{orderId}</p>
+                                    <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-[2.5rem] text-center shadow-sm">
+                                        <p className="text-[10px] font-black uppercase text-emerald-600 tracking-[0.3em] mb-2">Monto a Transferir</p>
+                                        <div className="space-y-1">
+                                            <p className="text-4xl font-black text-emerald-700">${total.toFixed(2)}</p>
+                                            {settings?.currency_rate && (
+                                                <div className="flex flex-col items-center">
+                                                    <span className="text-[10px] text-emerald-500 font-bold">O EQUIVALENTE A:</span>
+                                                    <p className="text-2xl font-black text-emerald-600">BS {(total * parseFloat(settings.currency_rate)).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                                    <p className="text-[8px] text-emerald-400 font-bold uppercase tracking-tighter mt-1">(TASA: {settings.currency_rate} BS/$)</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="w-1/2 h-px bg-emerald-100 mx-auto my-4"></div>
+                                        <p className="text-[10px] text-emerald-600/70 font-bold">ID PEDIDO: #{orderId}</p>
                                     </div>
 
                                     <div className="space-y-6">
@@ -369,9 +379,17 @@ const CartDrawer = ({ isOpen, onClose, cart, onRemove, user, onOrderComplete, se
                         {/* Footer Button for Step 1 */}
                         {step === 'cart' && cart.length > 0 && (
                             <div className="p-6 border-t bg-accent/5 space-y-4">
-                                <div className="flex items-center justify-between text-lg font-bold px-2">
-                                    <span className="text-accent-dark">Total a pagar</span>
-                                    <span className="text-accent text-2xl">${total.toFixed(2)}</span>
+                                <div className="flex flex-col gap-1 px-2 mb-2">
+                                    <div className="flex items-center justify-between text-lg font-bold">
+                                        <span className="text-accent-dark">Total en Dólares</span>
+                                        <span className="text-accent text-2xl">${total.toFixed(2)}</span>
+                                    </div>
+                                    {settings?.currency_rate && (
+                                        <div className="flex items-center justify-between text-emerald-600">
+                                            <span className="text-sm font-bold uppercase tracking-widest">Total en Bolívares</span>
+                                            <span className="text-xl font-black">BS {(total * parseFloat(settings.currency_rate)).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                        </div>
+                                    )}
                                 </div>
                                 <button
                                     onClick={handleCreateOrder}
