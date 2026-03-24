@@ -45,6 +45,7 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
     const [isSavingConfig, setIsSavingConfig] = useState(false);
     const [inventorySearch, setInventorySearch] = useState('');
     const [orderSearch, setOrderSearch] = useState('');
+    const [historySearch, setHistorySearch] = useState('');
 
     // Helper to calculate totals from recentOrders to ensure consistency
     const calculateLiveTotals = () => {
@@ -181,6 +182,8 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
             // Log the change (silencioso)
             supabase.from('inventory_logs').insert([{
                 product_id: id,
+                product_name: product?.name || '---',
+                admin_name: user?.name || 'Administrador',
                 change_type: 'manual',
                 quantity_changed: newStock - prevStock,
                 previous_stock: prevStock,
@@ -256,9 +259,22 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
         if (!window.confirm('¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer y el producto desaparecerá de la tienda.')) return;
 
         try {
+            const productToDelete = products.find(p => p.id === id);
             const { error } = await supabase.from('products').delete().eq('id', id);
             if (error) throw error;
             
+            // Log the deletion
+            supabase.from('inventory_logs').insert([{
+                product_id: id,
+                product_name: productToDelete?.name || '---',
+                admin_name: user?.name || 'Administrador',
+                change_type: 'delete',
+                quantity_changed: 0,
+                previous_stock: productToDelete?.stock || 0,
+                new_stock: 0,
+                timestamp: new Date().toISOString()
+            }]).then(() => {});
+
             alert('Producto eliminado exitosamente.');
             fetchData();
         } catch (error) {
@@ -785,13 +801,35 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                         onDelete={handleDeleteProduct}
                                     />
                                 )}
-                                {inventoryTab === 'history' && <InventoryHistoryView logs={inventoryHistory} />}
+                                {inventoryTab === 'history' && (
+                                    <InventoryHistoryView 
+                                        logs={inventoryHistory.filter(l => 
+                                            (l.product_name || '').toLowerCase().includes(historySearch.toLowerCase()) ||
+                                            (l.change_type || '').toLowerCase().includes(historySearch.toLowerCase())
+                                        )}
+                                        search={historySearch}
+                                        onSearch={setHistorySearch}
+                                    />
+                                )}
                                 {inventoryTab === 'report' && <InventoryReportView report={inventoryReport} />}
                                 {inventoryTab === 'bulk' && <InventoryBulkView products={products} onBulkUpdate={async (data) => {
-                                    // Make sure we just update existing products correctly
                                     for (const p of data) {
+                                        const original = products.find(prod => prod.id === p.id);
                                         await supabase.from('products').update({ stock: p.stock }).eq('id', p.id);
+                                        
+                                        // Log each change
+                                        await supabase.from('inventory_logs').insert([{
+                                            product_id: p.id,
+                                            product_name: original?.name || '---',
+                                            admin_name: user?.name || 'Administrador',
+                                            change_type: 'bulk_upload',
+                                            quantity_changed: p.stock - (original?.stock || 0),
+                                            previous_stock: original?.stock || 0,
+                                            new_stock: p.stock,
+                                            timestamp: new Date().toISOString()
+                                        }]);
                                     }
+                                    alert('Inventario actualizado masivamente.');
                                     fetchData();
                                     setInventoryTab('list');
                                 }} />}
@@ -1074,6 +1112,16 @@ const ExportButtons = ({ data, filename, title, type }) => {
                 'Total ($)': o.total,
                 'Estado': o.status
             }));
+        } else if (type === 'history') {
+            exportData = data.map(l => ({
+                'Fecha': new Date(l.timestamp).toLocaleString(),
+                'Producto': l.product_name,
+                'Responsable': l.admin_name,
+                'Acción': l.change_type,
+                'Cantidad Cambiada': l.quantity_changed,
+                'Stock Anterior': l.previous_stock,
+                'Stock Nuevo': l.new_stock
+            }));
         }
         const ws = XLSX.utils.json_to_sheet(exportData);
         const wb = XLSX.utils.book_new();
@@ -1103,6 +1151,16 @@ const ExportButtons = ({ data, filename, title, type }) => {
                     o.customer_name,
                     `$${o.total.toFixed(2)}`,
                     o.status
+                ]);
+            } else if (type === 'history') {
+                headings = ['Fecha', 'Producto', 'Responsable', 'Acción', 'Cant.', 'Stock'];
+                rows = data.map(l => [
+                    new Date(l.timestamp).toLocaleString(),
+                    l.product_name,
+                    l.admin_name,
+                    l.change_type,
+                    l.quantity_changed,
+                    l.new_stock
                 ]);
             }
 
@@ -1509,43 +1567,79 @@ const OrdersView = ({ orders, onSelect }) => {
     );
 };
 
-const InventoryHistoryView = ({ logs }) => (
+const InventoryHistoryView = ({ logs, search, onSearch }) => (
     <div className="space-y-6">
-        <h3 className="text-xl font-bold text-gray-900">Histórico de Inventario (Kardex)</h3>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+                <h3 className="text-xl font-bold text-gray-900">Histórico de Inventario (Kardex)</h3>
+                <ExportButtons 
+                    type="history" 
+                    title="Histórico de Movimientos de Inventario" 
+                    filename="Kardex_Rosa_Elena" 
+                    data={logs} 
+                />
+            </div>
+            <div className="relative w-full sm:w-64">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input 
+                    type="text" 
+                    placeholder="Buscar en historial..." 
+                    value={search}
+                    onChange={(e) => onSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all font-medium"
+                />
+            </div>
+        </div>
+
         <div className="bg-white rounded-[2rem] shadow-sm border border-white overflow-hidden overflow-x-auto">
-            <table className="w-full text-left min-w-[700px]">
+            <table className="w-full text-left min-w-[800px]">
                 <thead>
                     <tr className="bg-gray-50 border-b border-gray-100">
                         <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Fecha</th>
                         <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Producto</th>
+                        <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Responsable</th>
                         <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Tipo</th>
-                        <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Cant.</th>
-                        <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Stock Anterior</th>
-                        <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Stock Nuevo</th>
+                        <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-center">Cant.</th>
+                        <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-center">Stock</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                     {Array.isArray(logs) && logs.map(log => (
-                        <tr key={log.id} className="text-sm">
-                            <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                        <tr key={log.id} className="text-sm hover:bg-gray-50/50 transition-colors">
+                            <td className="px-6 py-4 whitespace-nowrap text-gray-500 font-medium">
                                 {log.timestamp ? new Date(log.timestamp).toLocaleString('es-VE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '---'}
                             </td>
-                            <td className="px-6 py-4 font-bold text-gray-800">{log.product_name || 'Desconocido'}</td>
+                            <td className="px-6 py-4 font-bold text-gray-900">{log.product_name || 'Desconocido'}</td>
                             <td className="px-6 py-4">
-                                <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase ${log.change_type === 'sale' ? 'bg-red-50 text-red-500' :
+                                <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 bg-gray-100 rounded-lg flex items-center justify-center text-[10px] font-black text-gray-400">
+                                        {(log.admin_name || 'A')[0]}
+                                    </div>
+                                    <span className="font-bold text-gray-600">{log.admin_name || '---'}</span>
+                                </div>
+                            </td>
+                            <td className="px-6 py-4">
+                                <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase ${
+                                    log.change_type === 'sale' ? 'bg-red-50 text-red-500' :
                                     log.change_type === 'restock' ? 'bg-emerald-50 text-emerald-500' :
-                                        'bg-blue-50 text-blue-500'
-                                    }`}>
+                                    log.change_type === 'delete' ? 'bg-gray-900 text-white' :
+                                    'bg-blue-50 text-blue-500'
+                                }`}>
                                     {log.change_type === 'sale' ? 'Venta' :
-                                        log.change_type === 'restock' ? 'Reposición' :
-                                            log.change_type === 'bulk_upload' ? 'Carga Masiva' : 'Manual'}
+                                     log.change_type === 'restock' ? 'Reposición' :
+                                     log.change_type === 'delete' ? 'ELIMINADO' :
+                                     log.change_type === 'bulk_upload' ? 'Carga Masiva' : 'Manual'}
                                 </span>
                             </td>
-                            <td className={`px-6 py-4 font-black ${log.quantity_changed > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                                {log.quantity_changed > 0 ? `+${log.quantity_changed}` : log.quantity_changed}
+                            <td className={`px-6 py-4 font-black text-center ${log.quantity_changed > 0 ? 'text-emerald-500' : log.quantity_changed < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                                {log.quantity_changed > 0 ? `+${log.quantity_changed}` : log.quantity_changed === 0 ? '--' : log.quantity_changed}
                             </td>
-                            <td className="px-6 py-4 text-gray-400">{log.previous_stock}</td>
-                            <td className="px-6 py-4 font-bold text-gray-900">{log.new_stock}</td>
+                            <td className="px-6 py-4 text-center">
+                                <div className="flex flex-col leading-tight">
+                                    <span className="text-gray-900 font-bold">{log.new_stock}</span>
+                                    <span className="text-[10px] text-gray-400">Antes: {log.previous_stock}</span>
+                                </div>
+                            </td>
                         </tr>
                     ))}
                     {(!logs || logs.length === 0) && (

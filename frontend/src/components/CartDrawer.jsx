@@ -68,6 +68,8 @@ const CartDrawer = ({ isOpen, onClose, cart, onRemove, user, onOrderComplete, se
                 
                 await supabase.from('inventory_logs').insert([{
                     product_id: item.id,
+                    product_name: item.name,
+                    admin_name: user?.name || 'Cliente',
                     change_type: 'sale',
                     quantity_changed: -item.quantity,
                     previous_stock: oldStock,
