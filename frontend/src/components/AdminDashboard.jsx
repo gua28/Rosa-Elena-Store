@@ -198,10 +198,15 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
         try {
             const { error } = await supabase.from('orders').update(updates).eq('id', id);
             if (error) throw error;
+            
+            if (updates.status) alert('Estado del pedido actualizado');
+            if (updates.payment_proof) alert('Comprobante subido correctamente');
+            
             fetchData();
             setSelectedOrder(prev => prev ? { ...prev, ...updates } : null);
         } catch (error) {
             console.error('Error updating order:', error);
+            alert('Error al actualizar el pedido');
         }
     };
 
@@ -237,11 +242,13 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
 
             if (error) throw error;
 
+            alert(editingProduct ? 'Producto actualizado correctamente' : 'Producto creado con éxito');
             setIsProductModalOpen(false);
             setEditingProduct(null);
             fetchData();
         } catch (error) {
             console.error('Error saving product:', error);
+            alert('Error al guardar el producto: ' + (error.message || 'Error desconocido'));
         }
     };
 
@@ -928,6 +935,7 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                         onClose={() => setSelectedOrder(null)}
                         onUpdateStatus={handleUpdateOrderStatus}
                         onDelete={() => handleDeleteOrder(selectedOrder.id)}
+                        settings={settings}
                     />
                 )}
             </AnimatePresence>
@@ -1398,7 +1406,12 @@ const InventoryView = ({ products, onUpdateStock, onAdd, onEdit }) => (
                         <tr key={prod.id} className="hover:bg-gray-50/50 transition-colors">
                             <td className="px-8 py-6">
                                 <div className="flex items-center gap-4">
-                                    <img src={formatImageUrl(prod.image)} alt="" className="w-12 h-12 rounded-xl object-cover bg-gray-50" />
+                                    <img 
+                                        src={formatImageUrl(prod.image)} 
+                                        alt="" 
+                                        className="w-12 h-12 rounded-xl object-cover bg-gray-50"
+                                        onError={(e) => { e.target.src = 'https://via.placeholder.com/300?text=Error'; }}
+                                    />
                                     <div>
                                         <span className="font-bold text-gray-900 block">{prod.name}</span>
                                         <span className="text-xs text-gray-400">{prod.category}</span>
@@ -1448,36 +1461,51 @@ const InventoryView = ({ products, onUpdateStock, onAdd, onEdit }) => (
     </div>
 );
 
-const OrdersView = ({ orders, onSelect }) => (
-    <div className="space-y-8">
-        <h2 className="text-2xl md:text-3xl font-black text-gray-900">Gestión de Pedidos</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {orders.map(order => (
-                <button
-                    key={order.id}
-                    onClick={() => onSelect(order)}
-                    className="bg-white p-6 rounded-[2rem] shadow-sm hover:shadow-xl transition-all text-left group border border-transparent hover:border-accent/20 flex flex-col h-full"
-                >
-                    <div className="flex justify-between items-start mb-6">
-                        <div className="p-3 bg-gray-50 rounded-2xl group-hover:bg-accent/10 transition-colors">
-                            <ShoppingCart className="h-6 w-6 text-gray-400 group-hover:text-accent" />
-                        </div>
-                        <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase ${order.status === 'completado' ? 'bg-emerald-100 text-emerald-600' : 'bg-accent/10 text-accent'
-                            }`}>
-                            {order.status}
-                        </span>
-                    </div>
-                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-1">Pedido #{order.id}</span>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">{order.customer_name}</h3>
-                    <div className="mt-auto pt-6 border-t border-gray-50 flex items-center justify-between">
-                        <span className="text-xs text-gray-500">{order.items.length} productos</span>
-                        <span className="text-lg font-black text-accent">${(order.total || 0).toFixed(2)}</span>
-                    </div>
-                </button>
-            ))}
+const OrdersView = ({ orders, onSelect }) => {
+    const parseItems = (json) => {
+        try {
+            if (!json) return [];
+            return typeof json === 'string' ? JSON.parse(json) : json;
+        } catch (e) {
+            console.error("Error parsing items:", e);
+            return [];
+        }
+    };
+
+    return (
+        <div className="space-y-8">
+            <h2 className="text-2xl md:text-3xl font-black text-gray-900">Gestión de Pedidos</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {orders.map(order => {
+                    const items = parseItems(order.items_json);
+                    return (
+                        <button
+                            key={order.id}
+                            onClick={() => onSelect(order)}
+                            className="bg-white p-6 rounded-[2rem] shadow-sm hover:shadow-xl transition-all text-left group border border-transparent hover:border-accent/20 flex flex-col h-full"
+                        >
+                            <div className="flex justify-between items-start mb-6">
+                                <div className="p-3 bg-gray-50 rounded-2xl group-hover:bg-accent/10 transition-colors">
+                                    <ShoppingCart className="h-6 w-6 text-gray-400 group-hover:text-accent" />
+                                </div>
+                                <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase ${order.status === 'completado' ? 'bg-emerald-100 text-emerald-600' : 'bg-accent/10 text-accent'
+                                    }`}>
+                                    {order.status}
+                                </span>
+                            </div>
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-1">Pedido #{order.id}</span>
+                            <h3 className="text-xl font-bold text-gray-900 mb-2">{order.customer_name}</h3>
+                            <div className="mt-auto pt-6 border-t border-gray-50 flex items-center justify-between">
+                                <span className="text-xs text-gray-500">{items.length} productos</span>
+                                <span className="text-lg font-black text-accent">${(order.total || 0).toFixed(2)}</span>
+                            </div>
+                        </button>
+                    );
+                })}
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 const InventoryHistoryView = ({ logs }) => (
     <div className="space-y-6">
@@ -1687,8 +1715,17 @@ const InventoryBulkView = ({ products, onBulkUpdate }) => {
     );
 };
 
-const OrderModal = ({ order, onClose, onUpdateStatus, onDelete }) => {
+const OrderModal = ({ order, onClose, onUpdateStatus, onDelete, settings }) => {
     const [uploading, setUploading] = useState(false);
+
+    const items = (() => {
+        try {
+            if (!order.items_json) return [];
+            return typeof order.items_json === 'string' ? JSON.parse(order.items_json) : order.items_json;
+        } catch (e) {
+            return [];
+        }
+    })();
 
     const handleUpload = async (e) => {
         const file = e.target.files[0];
@@ -1767,7 +1804,7 @@ const OrderModal = ({ order, onClose, onUpdateStatus, onDelete }) => {
                     <div className="bg-gray-50 rounded-3xl p-6 border border-gray-100">
                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-4">Detalle de Compra</span>
                         <div className="space-y-3">
-                            {(order.items || []).map((item, i) => (
+                            {items.map((item, i) => (
                                 <div key={i} className="flex justify-between items-center text-sm">
                                     <div className="flex items-center gap-3">
                                         <span className="w-6 h-6 bg-white rounded-lg flex items-center justify-center text-xs font-bold text-accent shadow-sm">{item.quantity}</span>
@@ -1809,7 +1846,12 @@ const OrderModal = ({ order, onClose, onUpdateStatus, onDelete }) => {
                                     <a href={formatImageUrl(order.payment_proof)} target="_blank" rel="noopener noreferrer" className="text-emerald-700 underline text-xs font-black hover:text-emerald-900 transition-colors uppercase tracking-widest">Ver original</a>
                                 </div>
                                 <div className="bg-white p-2 rounded-2xl border border-emerald-100 shadow-sm relative group overflow-hidden">
-                                    <img src={formatImageUrl(order.payment_proof)} alt="Payment Proof" className="w-full h-64 object-contain rounded-xl" />
+                                    <img 
+                                        src={formatImageUrl(order.payment_proof)} 
+                                        alt="Payment Proof" 
+                                        className="w-full h-64 object-contain rounded-xl"
+                                        onError={(e) => { e.target.src = 'https://via.placeholder.com/300?text=Comprobante+No+Encontrado'; }}
+                                    />
                                     <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer text-white font-bold gap-2">
                                         <Upload className="h-5 w-5" /> Cambiar Imagen
                                         <input type="file" accept="image/*" onChange={handleUpload} className="hidden" />
