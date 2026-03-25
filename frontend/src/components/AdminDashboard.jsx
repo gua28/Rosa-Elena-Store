@@ -268,7 +268,7 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                     previous_stock: isEditing ? editingProduct.stock : 0,
                     new_stock: productData.stock,
                     timestamp: new Date().toISOString(),
-                    reason: `${isEditing ? 'Editado' : 'Creado'} por ${user?.name || 'Administrador'}`
+                    reason: `[${productData.name}] - ${isEditing ? 'Editado' : 'Creado'} por ${user?.name || 'Administrador'}`
                 }]);
             }
 
@@ -298,7 +298,7 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                 previous_stock: productToDelete?.stock || 0,
                 new_stock: 0,
                 timestamp: new Date().toISOString(),
-                reason: `Eliminado por ${user?.name || 'Administrador'}`
+                reason: `[${productToDelete?.name || 'Producto Desconocido'}] - ELIMINADO por ${user?.name || 'Administrador'}`
             }]).then(() => {});
 
             alert('Producto eliminado exitosamente.');
@@ -830,7 +830,10 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                 {inventoryTab === 'history' && (
                                     <InventoryHistoryView 
                                         logs={inventoryHistory.filter(l => {
-                                            const pName = products.find(p => p.id === l.product_id)?.name || '';
+                                            const matchName = l.reason?.match(/\[(.*?)\]/);
+                                            const pNameFromReason = matchName ? matchName[1] : '';
+                                            const pName = products.find(p => p.id === l.product_id)?.name || pNameFromReason || 'Producto Elimi.';
+                                            
                                             return pName.toLowerCase().includes(historySearch.toLowerCase()) ||
                                                    (l.change_type || '').toLowerCase().includes(historySearch.toLowerCase());
                                         })}
@@ -1697,7 +1700,7 @@ const InventoryHistoryView = ({ logs, products, search, onSearch }) => (
                                 {log.timestamp ? new Date(log.timestamp).toLocaleString('es-VE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '---'}
                             </td>
                             <td className="px-6 py-4 font-bold text-gray-900">
-                                {products.find(p => p.id === log.product_id)?.name || '---'}
+                                {products.find(p => p.id === log.product_id)?.name || (log.reason?.match(/\[(.*?)\]/)?.[1] || 'Producto Elimi.')}
                             </td>
                             <td className="px-6 py-4">
                                 <div className="flex items-center gap-2">
