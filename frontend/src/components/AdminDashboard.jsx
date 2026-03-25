@@ -226,15 +226,19 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
     };
 
     const handleDeleteOrder = async (id) => {
+        if (!id) return;
         if (!window.confirm('¿Estás seguro de que deseas eliminar este pedido? Esta acción no se puede deshacer.')) return;
 
         try {
             const { error } = await supabase.from('orders').delete().eq('id', id);
             if (error) throw error;
+            
+            alert('Pedido eliminado correctamente.');
             setSelectedOrder(null);
             fetchData();
         } catch (error) {
             console.error('Error deleting order:', error);
+            alert('Error al eliminar el pedido: ' + (error.message || 'Error de base de datos'));
         }
     };
 
@@ -283,15 +287,14 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
     };
 
     const handleDeleteProduct = async (id) => {
+        if (!id) return;
         if (!window.confirm('¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer y el producto desaparecerá de la tienda.')) return;
 
         try {
-            const productToDelete = products.find(p => p.id === id);
-            const { error } = await supabase.from('products').delete().eq('id', id);
-            if (error) throw error;
+            const productToDelete = Array.isArray(products) ? products.find(p => p.id === id) : null;
             
-            // Log the deletion
-            supabase.from('inventory_logs').insert([{
+            // Log ANTES de borrar para capturar la info (en caso de que el borrado tenga éxito)
+            const logPromise = supabase.from('inventory_logs').insert([{
                 product_id: id,
                 change_type: 'delete',
                 quantity_changed: 0,
@@ -299,13 +302,24 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                 new_stock: 0,
                 timestamp: new Date().toISOString(),
                 reason: `[${productToDelete?.name || 'Producto Desconocido'}] - ELIMINADO por ${user?.name || 'Administrador'}`
-            }]).then(() => {});
+            }]);
 
+            const { error } = await supabase.from('products').delete().eq('id', id);
+            
+            if (error) {
+                if (error.code === '23503') {
+                    alert('No se puede eliminar: Este producto tiene pedidos o registros asociados. Primero debes eliminar sus pedidos para mantener la integridad de la tienda.');
+                    return;
+                }
+                throw error;
+            }
+            
+            await logPromise; // Esperamos que el log se guarde si el delete fue bien
             alert('Producto eliminado exitosamente.');
             fetchData();
         } catch (error) {
             console.error('Error deleting product:', error);
-            alert('No se pudo eliminar el producto. Asegúrate de que no tenga pedidos asociados.');
+            alert('No se pudo eliminar el producto: ' + (error.message || 'Error desconocido'));
         }
     };
 
