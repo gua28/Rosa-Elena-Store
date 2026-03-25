@@ -261,15 +261,6 @@ const Chatbot = ({ onAddToCart }) => {
                     </span>
                 )}
             </button>
-            <style jsx>{`
-                .hide-scrollbar::-webkit-scrollbar {
-                    display: none;
-                }
-                .hide-scrollbar {
-                    -ms-overflow-style: none;
-                    scrollbar-width: none;
-                }
-            `}</style>
         </div>
     );
 };
