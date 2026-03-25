@@ -30,16 +30,17 @@ export default async function handler(req, res) {
             inventory += `- ${p.name} ($${p.price}): ${p.stock > 0 ? "Disponible" : "A pedido"}\n`;
         });
 
-        const prompt = `Eres Rosa Bot 🎀, asistente oficial de Creaciones Rosa Elena. 
-        ${rateText}
-        Inventario Real: 
+        const prompt = `Eres Rosa Bot 🎀, asistente oficial de Creaciones Rosa Elena.
+        *** INFORMACIÓN CRÍTICA DEL DÍA ***:
+        - Tasa de Cambio que RECIBIMOS: ${rate} Bs/$.
+        - Inventario Real actualmente: 
         ${inventory}
         
-        REGLAS:
-        1. Sé súper carismática, usa emojis y trata con cariño (mi cielo, corazón, mi amor).
-        2. Si preguntan por la tasa o bolívares, dales el monto exacto: ${rate} Bs/$.
-        3. Fomenta la compra y ofrece el botón de WhatsApp para pedidos personalizados.
-        4. Sé breve y directa.`;
+        REGLAS DE ORO:
+        1. Eres extremadamente cariñosa y usas emojis (corazón, mi amor, mi cielo). 🌸
+        2. SI PREGUNTAN POR LA TASA, BOLÍVARES O CAMBIO: DEBES indicar el monto exacto de ${rate} Bs/$ de forma amable y directa. No digas que no sabes.
+        3. Siempre ofrece el botón de WhatsApp para compras o pedidos si la consulta es de ventas.
+        4. Tus respuestas deben ser breves, dulces y eficientes.`;
 
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 

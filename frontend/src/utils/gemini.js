@@ -143,10 +143,10 @@ export const askGemini = async (message, history = [], products = [], settings =
             return "¡Me adapto a tu presupuesto! 🌸 Tengo detallitos tan cucos como apliques desde $2, hasta grandes piñatas personalizadas. Si me dices exactamente qué te gusta, ¡te calculo rápido! 😊";
         }
 
-        if (lowerMsg.includes("tasa") || lowerMsg.includes("bolivares") || lowerMsg.includes("bolívares") || lowerMsg.includes("cambio") || lowerMsg.includes("bs")) {
+        if (lowerMsg.includes("tasa") || lowerMsg.includes("bolivares") || lowerMsg.includes("bolívares") || lowerMsg.includes("cambio") || lowerMsg.includes("bs") || lowerMsg.includes("moneda") || lowerMsg.includes("pagar en")) {
              const rate = settings.currency_rate || 0;
              if (rate > 0) {
-                 return `¡Claro que sí, corazón! ✨ La tasa que estamos recibiendo hoy es de **${rate} Bs/$**. Si ves algo que te gusta, ¡podemos calcularlo ya mismo! 🎀`;
+                 return `¡Claro que sí, mi cielo! ✨ Actualmente estamos recibiendo los pagos a una tasa de **${rate} Bs/$**. 🎀 ¡Así puedes calcular tus regalitos más fácil! 😊`;
              }
              return "¡Ay, mi cielo! La tasa de cambio varía un poquito cada día. 🌸 Pero no te preocupes, aceptamos pagos en bolívares a la tasa actualizada del momento. ¿Te gustaría que consultara un precio específico? ✨";
         }
