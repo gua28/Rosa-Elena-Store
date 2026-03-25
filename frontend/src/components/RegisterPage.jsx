@@ -3,6 +3,13 @@ import { Heart, Lock, User, ArrowLeft, Mail, Phone, MapPin, Eye, EyeOff } from '
 
 import { supabase } from '../utils/supabaseClient';
 
+const hashPassword = async (password) => {
+    const msgBuffer = new TextEncoder().encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
 const RegisterPage = ({ onBack, onRegisterSuccess }) => {
     const [formData, setFormData] = useState({
         name: '',
@@ -72,12 +79,15 @@ const RegisterPage = ({ onBack, onRegisterSuccess }) => {
                 throw authError;
             }
 
+            // Encriptamos la contraseña para la tabla visual (SHA-256)
+            const hashedPassword = await hashPassword(formData.password);
+
             // 2. Guardamos sus datos completos en la base de datos (Retrocompatibilidad)
             const { error: dbError } = await supabase
                 .from('users')
                 .insert([{
                     email: formData.email.toLowerCase(),
-                    password: formData.password, // Solo para compatibilidad de sistema
+                    password: hashedPassword, // ENCRIPTADA para mayor seguridad
                     name: formData.name,
                     role: 'client',
                     phone: formData.phone,

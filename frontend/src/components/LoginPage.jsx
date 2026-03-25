@@ -2,6 +2,13 @@ import React, { useState } from 'react';
 import { Heart, Lock, User, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 
 import { supabase } from '../utils/supabaseClient';
+const hashPassword = async (password) => {
+    const msgBuffer = new TextEncoder().encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
 function LoginPage({ onBack, onLogin, onGoToRegister }) {
     const [credentials, setCredentials] = useState({ email: '', password: '' });
     const [isLoading, setIsLoading] = useState(false);
@@ -28,22 +35,24 @@ function LoginPage({ onBack, onLogin, onGoToRegister }) {
                     return;
                 }
 
-                // 2. FALLBACK RETROCOMPATIBLE:
-                // Si falló por otra razón (ej. es una cuenta antigua admin que no está en Auth, solo en la tabla 'users')
+                // 2. FALLBACK RETROCOMPATIBLE Y SOPORTE DE ENCRIPTACIÓN:
+                // Generamos el hash de la contraseña escrita para comparar con la base de datos
+                const hashedPassword = await hashPassword(credentials.password);
+
                 const { data: oldUser, error: oldError } = await supabase
                     .from('users')
                     .select('*')
                     .eq('email', credentials.email.toLowerCase())
-                    .eq('password', credentials.password)
-                    .single();
+                    .in('password', [credentials.password, hashedPassword]) // Soportamos la encriptada y la vieja en texto plano
+                    .limit(1);
 
-                if (oldError || !oldUser) {
+                if (oldError || !oldUser || oldUser.length === 0) {
                     setError('Credenciales incorrectas (Verifique email y contraseña)');
                     return;
                 }
 
                 // Exito con cuenta antigua
-                onLogin(oldUser);
+                onLogin(oldUser[0]);
                 return;
             }
 
