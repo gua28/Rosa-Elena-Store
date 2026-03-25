@@ -1142,8 +1142,8 @@ const ExportButtons = ({ data, filename, title, type }) => {
         } else if (type === 'history') {
             exportData = data.map(l => ({
                 'Fecha': new Date(l.timestamp).toLocaleString(),
-                'Producto': l.product_name,
-                'Responsable': l.admin_name,
+                'Producto': l.product_name || 'Desconocido',
+                'Responsable': l.admin_name || 'Admin',
                 'Acción': l.change_type,
                 'Cantidad Cambiada': l.quantity_changed,
                 'Stock Anterior': l.previous_stock,
@@ -1151,12 +1151,28 @@ const ExportButtons = ({ data, filename, title, type }) => {
             }));
         }
         
-        // Crear hoja con título encabezado
-        const ws = XLSX.utils.json_to_sheet([{ A: "CREACIONES ROSA ELENA - REPORTE OFICIAL" }, { A: `Generado: ${new Date().toLocaleString()}` }, {}], { skipHeader: true });
-        XLSX.utils.sheet_add_json(ws, exportData, { origin: "A4" });
-        
+        // --- NUEVA LÓGICA DE BRANDING PARA EXCEL ---
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Reporte");
+        
+        // Construimos el encabezado manualmente
+        const headerInfo = [
+            ["CREACIONES ROSA ELENA 🎀"],
+            ['"Cada creación, un pedacito de amor" ✨'],
+            [`REPORTE DE: ${title.toUpperCase()}`],
+            [`Generado el: ${new Date().toLocaleString()}`],
+            ["-------------------------------------------------"],
+            [] // Espacio en blanco antes de la tabla
+        ];
+
+        const ws = XLSX.utils.aoa_to_sheet(headerInfo);
+        
+        // Añadimos los datos de la tabla debajo del encabezado (celda A7)
+        XLSX.utils.sheet_add_json(ws, exportData, { origin: "A7" });
+
+        // Ajustar anchos de columnas (opcional, ayuda a que no se vea cortado)
+        ws['!cols'] = [{ wch: 30 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 20 }];
+
+        XLSX.utils.book_append_sheet(wb, ws, "Reporte Oficial");
         XLSX.writeFile(wb, `${filename}.xlsx`);
     };
 
