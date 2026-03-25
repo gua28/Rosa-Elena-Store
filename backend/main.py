@@ -45,6 +45,8 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     history: List[ChatMessage] = []
+    settings: Optional[dict] = {}
+    products: Optional[List[dict]] = []
 
 class UserBase(BaseModel):
     email: str
@@ -167,29 +169,33 @@ async def chat_with_ia(request: ChatRequest, db: Session = Depends(get_db)):
     if not model_ai:
         return {"reply": "El asistente inteligente de Rosa Elena necesita ser configurado. Por favor, asegúrate de haber creado tu archivo `.env` en el backend con la clave `GEMINI_API_KEY=tu_clave_aqui`."}
 
-    # 1. Consultamos el inventario real de la base de datos
+    # 1. Consultamos el inventario y configuraciones reales
     products = db.query(models.Product).all()
     inventory_context = ""
     for p in products:
-        status = "Disponible" if p.stock > 0 else "SIN STOCK (Agotado)"
-        inventory_context += f"- {p.name} ({p.category}): ${p.price}. Stock: {p.stock} ({status}). Desc: {p.description}\n"
+        status = "Disponible" if p.stock > 0 else "SIN STOCK"
+        inventory_context += f"- {p.name}: ${p.price}. {status}.\n"
+
+    # 1.1 Obtener tasa de cambio
+    settings_db = db.query(models.Setting).all()
+    settings_dict = {s.key: s.value for s in settings_db}
+    # Priorizar settings enviados en la request, si no, usar DB
+    current_settings = {**settings_dict, **(request.settings or {})}
+    rate = current_settings.get("currency_rate", "0")
+    rate_info = f"TASA DEL DÍA: {rate} Bs/$." if float(rate or 0) > 0 else "Consultar tasa por WhatsApp."
 
     # 2. Definimos las instrucciones del sistema (La "personalidad" del bot)
     system_instruction = f"""
-    Eres el asistente virtual avanzado de venta de 'Creaciones Rosa Elena'. Tu nombre es Rosa Bot.
-    Tu objetivo es ser verdaderamente inteligente, llevar el hilo de la conversación de forma natural y persuasiva, y ayudar al cliente a tomar decisiones de compra basándote en el inventario real y responder a cualquier duda sobre tus productos.
+    Eres Rosa Bot 🎀, la asistente cariñosa de 'Creaciones Rosa Elena'.
+    
+    INFORMACIÓN CRÍTICA:
+    - {rate_info}
+    - Inventario: {inventory_context}
 
-    ¡NO USES RESPUESTAS ROBÓTICAS O PREPROGRAMADAS! Habla de forma conversacional, amena y carismática y MUY ÚTIL.
-    Usa emojis con estilo sin saturar (✨🎀😊).
-    Si un cliente duda entre dos opciones, recomiéndale según el stock.
-    
-    INFORMACIÓN DE PRODUCTOS EN TIEMPO REAL:
-    {inventory_context}
-    
-    REGLAS ESTRICTAS DE INVENTARIO:
-    - SIEMPRE verifica el stock antes de hablar de un producto.
-    - Si algo está SIN STOCK ("Agotado"), díselo sutilmente y ofrece enseguida crearlo "Bajo pedido" 100% personalizado.
-    - Anima constantemente a que si ya están decididos, presionen "Añadir al Carrito" en la tarjeta del producto, o si quieren algo muy específico, que usen el botón de "WhatsApp" que te programaron.
+    REGLAS:
+    - Sé súper amable, usa emojis y trata con cariño (mi cielo, corazón). 🌸
+    - SI PREGUNTAN POR BOLÍVARES O TASA: Responde con el monto exacto de {rate} Bs/$.
+    - Sé breve y ofrece botón de WhatsApp para pedidos.
     """
 
     # 3. Formateamos el historial para Gemini
