@@ -7,10 +7,17 @@
 export const askGemini = async (message, history = [], products = [], settings = {}) => {
     const lowerMsg = message.toLowerCase();
     
-    // --- NUEVA LÓGICA DE PRIORIDAD: Detectar Tasa ANTES de llamar a la nube ---
+    // --- NUEVA LÓGICA DE PRIORIDAD: Detectar Tasa y CALCULADORA ---
     if (lowerMsg.includes("tasa") || lowerMsg.includes("bolivares") || lowerMsg.includes("bolívares") || lowerMsg.includes("cambio") || lowerMsg.includes("bs") || lowerMsg.includes("moneda") || lowerMsg.includes("pagar en")) {
-        const rate = settings.currency_rate || 0;
+        const rate = parseFloat(settings.currency_rate || 0);
         if (rate > 0) {
+            // Intentar detectar un número en el mensaje para hacer la cuenta
+            const amountMatch = message.match(/(\d+([.,]\d+)?)/);
+            if (amountMatch) {
+                const amount = parseFloat(amountMatch[0].replace(',', '.'));
+                const result = (amount * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 });
+                return `¡Claro que sí, mi cielo! ✨ Sacando la cuenta a la tasa de **${rate} Bs/$**, los **$${amount}** serían exactamente **${result} Bs**. 🎀 ¿Te gustaría que te ayude con algo más? 😊`;
+            }
             return `¡Claro que sí, mi cielo! ✨ Actualmente estamos recibiendo los pagos a una tasa de **${rate} Bs/$**. 🎀 ¡Así puedes calcular tus regalitos más fácil! 😊`;
         }
     }
@@ -122,8 +129,11 @@ export const askGemini = async (message, history = [], products = [], settings =
 
         if (relevantProducts.length > 0) {
             const p = relevantProducts[0];
+            const rate = parseFloat(settings.currency_rate || 0);
+            const priceBs = rate > 0 ? ` (aprox. **${(p.price * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs**)` : "";
             const stockMsg = p.stock > 0 ? "¡Y la súper noticia es que lo tengo para entrega inmediata! 🚀" : "Justo se nos agotó en la tienda, pero te lo fabrico igualito bajo pedido con el mayor amor. 😊";
-            return `¡Qué buen gusto tienes! ✨ El "${p.name}" es una joya. 💎 Cuesta $${p.price}. ${stockMsg} ¿Te gustaría que gestionemos el pedido por WhatsApp? 🎀`;
+            
+            return `¡Qué buena elección! ✨ El "${p.name}" cuesta **$${p.price}**${priceBs}. ${stockMsg} 🎀 ¿Te gustaría que te ayude a completar tu pedido? 😊`;
         }
 
         // 2.4 PREGUNTAS POR CATEGORÍA DE PRODUCTOS
