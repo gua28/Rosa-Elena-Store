@@ -1168,35 +1168,36 @@ const ExportButtons = ({ data, filename, title, type }) => {
             const addWatermark = (pdfDoc) => {
                 const img = new Image();
                 img.src = '/logo.png';
-                // Añadimos el logo centrado con opacidad baja
-                // Nota: jspdf soporta opacidad con setGState
                 try {
+                    // Marca de agua centralizada (un poco más visible: 0.15)
                     pdfDoc.saveGraphicsState();
-                    pdfDoc.setGState(new pdfDoc.GState({ opacity: 0.1 }));
+                    pdfDoc.setGState(new pdfDoc.GState({ opacity: 0.15 }));
                     pdfDoc.addImage(img, 'PNG', 40, 80, 130, 130);
                     pdfDoc.restoreGraphicsState();
+                    
+                    // Logo en el ENCABEZADO (Totalmente visible: opacidad 1)
+                    pdfDoc.addImage(img, 'PNG', 160, 10, 30, 30);
                 } catch (e) {
-                    // Fallback si falla la imagen (ej: ruta)
                     console.log("No se pudo cargar el logo para el PDF", e);
                 }
             };
 
             addWatermark(doc);
 
-            doc.setFontSize(22);
+            doc.setFontSize(24);
             doc.setTextColor(50);
-            doc.text("Creaciones Rosa Elena", 14, 20);
+            doc.text("Creaciones Rosa Elena", 14, 24);
             
             doc.setFontSize(14);
             doc.setTextColor(79, 70, 229); // Accent color
-            doc.text(title, 14, 30);
+            doc.text(title, 14, 34);
             
-            doc.setFontSize(10);
+            doc.setFontSize(9);
             doc.setTextColor(150);
-            doc.text(`Reporte Oficial de Administración | Generado: ${new Date().toLocaleString()}`, 14, 38);
+            doc.text(`Documento Administrativo | Generado: ${new Date().toLocaleString()}`, 14, 42);
             
             doc.setDrawColor(79, 70, 229);
-            doc.line(14, 40, 196, 40);
+            doc.line(14, 45, 196, 45);
 
             let headings = [];
             let rows = [];
