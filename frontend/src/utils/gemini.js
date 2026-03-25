@@ -133,7 +133,11 @@ export const askGemini = async (message, history = [], products = [], settings =
             const priceBs = rate > 0 ? ` (aprox. **${(p.price * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs**)` : "";
             const stockMsg = p.stock > 0 ? "¡Y la súper noticia es que lo tengo para entrega inmediata! 🚀" : "Justo se nos agotó en la tienda, pero te lo fabrico igualito bajo pedido con el mayor amor. 😊";
             
-            return `¡Qué buena elección! ✨ El "${p.name}" cuesta **$${p.price}**${priceBs}. ${stockMsg} 🎀 ¿Te gustaría que te ayude a completar tu pedido? 😊`;
+            // Detectar intención de compra para añadir al carrito automáticamente
+            const isBuying = lowerMsg.includes("quiero") || lowerMsg.includes("comprar") || lowerMsg.includes("añadir") || lowerMsg.includes("facturar") || lowerMsg.includes("lo deseo");
+            const cartCmd = (isBuying && p.stock > 0) ? `[ADD_TO_CART:${p.id}]` : "";
+
+            return `¡Qué buena elección! ✨ El "${p.name}" cuesta **$${p.price}**${priceBs}. ${stockMsg} ${cartCmd} 🎀 ¿Te gustaría que te ayude a completar tu pedido? 😊`;
         }
 
         // 2.4 PREGUNTAS POR CATEGORÍA DE PRODUCTOS

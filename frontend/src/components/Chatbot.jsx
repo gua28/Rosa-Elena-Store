@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../utils/supabaseClient';
 import { askGemini } from '../utils/gemini';
 
-const Chatbot = () => {
+const Chatbot = ({ onAddToCart }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
@@ -77,9 +77,22 @@ const Chatbot = () => {
                                  replyText.toLowerCase().includes('personalizado') ||
                                  replyText.toLowerCase().includes('pedido');
 
+            // --- NUEVA LÓGICA DE CARRITO: Detectar comando de la IA ---
+            let cleanReply = replyText;
+            const cartMatch = replyText.match(/\[ADD_TO_CART:(\d+)\]/i);
+            
+            if (cartMatch && onAddToCart) {
+                const prodId = parseInt(cartMatch[1]);
+                const prod = products.find(p => p.id === prodId);
+                if (prod) {
+                    onAddToCart(prod);
+                    cleanReply = replyText.replace(/\[ADD_TO_CART:\d+\]/gi, '').trim();
+                }
+            }
+
             setMessages(prev => [...prev, {
                 id: Date.now() + 1,
-                text: replyText,
+                text: cleanReply,
                 sender: 'bot',
                 showWhatsAppBtn: needsWhatsapp
             }]);
