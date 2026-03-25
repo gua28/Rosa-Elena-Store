@@ -1191,8 +1191,8 @@ const ExportButtons = ({ data, filename, title, type }) => {
                     pdfDoc.addImage(img, 'PNG', 40, 80, 130, 130);
                     pdfDoc.restoreGraphicsState();
                     
-                    // Logo en el ENCABEZADO (Totalmente visible: opacidad 1)
-                    pdfDoc.addImage(img, 'PNG', 160, 10, 30, 30);
+                    // Logo en el ENCABEZADO (Ajustado para NO tapar: un poco más pequeño)
+                    pdfDoc.addImage(img, 'PNG', 172, 8, 24, 24);
                 } catch (e) {
                     console.log("No se pudo cargar el logo para el PDF", e);
                 }
@@ -1202,18 +1202,18 @@ const ExportButtons = ({ data, filename, title, type }) => {
 
             doc.setFontSize(24);
             doc.setTextColor(50);
-            doc.text("Creaciones Rosa Elena", 14, 24);
+            doc.text("Creaciones Rosa Elena", 14, 20);
             
             doc.setFontSize(14);
             doc.setTextColor(79, 70, 229); // Accent color
-            doc.text(title, 14, 34);
+            doc.text(title, 14, 30);
             
             doc.setFontSize(9);
             doc.setTextColor(150);
-            doc.text(`Documento Administrativo | Generado: ${new Date().toLocaleString()}`, 14, 42);
+            doc.text(`Documento Administrativo | Generado: ${new Date().toLocaleString()}`, 14, 38);
             
             doc.setDrawColor(79, 70, 229);
-            doc.line(14, 45, 196, 45);
+            doc.line(14, 42, 196, 42);
 
             let headings = [];
             let rows = [];
@@ -1820,6 +1820,12 @@ const InventoryReportView = ({ report }) => {
 
 const InventoryBulkView = ({ products, onBulkUpdate }) => {
     const [updates, setUpdates] = useState({});
+    const [searchTerm, setSearchTerm] = useState("");
+
+    const filteredProducts = products.filter(p => 
+        p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        p.category.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     const handleUpdateChange = (id, val) => {
         setUpdates(prev => ({ ...prev, [id]: val }));
@@ -1846,14 +1852,20 @@ const InventoryBulkView = ({ products, onBulkUpdate }) => {
 
     return (
         <div className="space-y-8 pb-10">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h3 className="text-xl font-bold text-gray-900">Carga Rápida de Inventario</h3>
-                    <p className="text-sm text-gray-500">Aumenta o disminuye el stock de múltiples productos a la vez.</p>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                <div className="flex-grow w-full max-w-md relative group">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-accent transition-colors" />
+                    <input 
+                        type="text" 
+                        placeholder="Buscar producto a actualizar..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full bg-white border border-gray-100 rounded-2xl py-3 pl-12 pr-4 font-bold shadow-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all"
+                    />
                 </div>
                 <button
                     onClick={handleSubmit}
-                    className="bg-accent hover:bg-accent-dark text-white px-8 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-xl shadow-accent/20 transition-all"
+                    className="bg-accent hover:bg-accent-dark text-white px-8 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-xl shadow-accent/20 transition-all w-full sm:w-auto"
                 >
                     <Check className="h-5 w-5" /> Guardar Cambios
                 </button>
@@ -1870,7 +1882,7 @@ const InventoryBulkView = ({ products, onBulkUpdate }) => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                        {products.map(prod => {
+                        {filteredProducts.map(prod => {
                             const change = parseInt(updates[prod.id] || 0);
                             const nextStock = prod.stock + (isNaN(change) ? 0 : change);
 
