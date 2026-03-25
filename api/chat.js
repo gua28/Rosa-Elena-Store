@@ -56,6 +56,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ reply: result.response.text() });
 
     } catch (error) {
-        return res.status(500).json({ error: "API Error" });
+        console.error("Vercel AI Error:", error);
+        return res.status(500).json({ error: "Cloud sync failed" });
     }
 }

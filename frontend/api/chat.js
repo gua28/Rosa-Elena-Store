@@ -99,6 +99,7 @@ export default async function handler(req, res) {
 
     } catch (error) {
         console.error("Vercel AI Error:", error);
-        return res.status(500).json({ error: error.message || "La IA tuvo un parpadeo creativo." });
+        // Si falla la IA en la nube, devolvemos un error estructurado que el frontend sepa manejar con el motor local
+        return res.status(500).json({ error: "Cloud connection failed" });
     }
 }

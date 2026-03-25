@@ -100,7 +100,7 @@ const Chatbot = ({ onAddToCart }) => {
             console.error("Chatbot Error:", error);
             setMessages(prev => [...prev, {
                 id: Date.now() + 1,
-                text: "✨ ¡Hola! He tenido un pequeño parpadeo procesando tantas ideas creativas. 😊 ¿Podrías repetirme tu consultita? Estamos para ayudarte. 🎀",
+                text: "¡Ay, mi cielo! Me distraje un segundito con lo lindo que quedó nuestro último pedido. ✨ ¿Me podrías decir de nuevo qué cosita buscabas? 🎀",
                 sender: 'bot'
             }]);
         } finally {

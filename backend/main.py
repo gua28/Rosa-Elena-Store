@@ -226,8 +226,8 @@ async def chat_with_ia(request: ChatRequest, db: Session = Depends(get_db)):
         
         return {"reply": response.text}
     except Exception as e:
-        print(f"Error IA: {e}")
-        return {"reply": "Uy, tuve un pequeño parpadeo procesando tantas ideas creativas para ti. 🎀 ¿Podrías repetirme tu consultita?"}
+        print(f"Error IA Backend: {e}")
+        return {"reply": "¡Ay, mi cielo! Mis cables de purpurina se enredaron un poquito, pero aquí estoy para ti. ✨ ¿Dime qué producto o temática te gustaría que revisáramos con mucho amor? 🎀"}
 # ==========================================
 # AUTH ENDPOINTS
 # ==========================================
