@@ -18,31 +18,35 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') { return res.status(405).json({ error: 'Method not allowed' }); }
 
     try {
-        const { message, history, products } = req.body;
+        const { message, history, products, settings } = req.body;
         const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
         
-        // Probamos modelos disponibles para esta clave
-        const modelNames = ["gemini-1.5-flash-latest", "gemini-flash-latest", "gemini-2.0-flash"];
-        let model = null;
+        const rate = settings?.currency_rate || 0;
+        const rateText = rate > 0 ? `Tasa del día: ${rate} Bs/$.` : "Consulta la tasa por WhatsApp.";
 
-        for (const name of modelNames) {
-            try {
-                model = genAI.getGenerativeModel({ model: name });
-                break;
-            } catch (e) { continue; }
-        }
-
-        if (!model) throw new Error("No model found");
-
+        // Inventario resumido
         let inventory = "";
-        (products || []).slice(0, 10).forEach(p => {
+        (products || []).slice(0, 15).forEach(p => {
             inventory += `- ${p.name} ($${p.price}): ${p.stock > 0 ? "Disponible" : "A pedido"}\n`;
         });
 
+        const prompt = `Eres Rosa Bot 🎀, asistente oficial de Creaciones Rosa Elena. 
+        ${rateText}
+        Inventario Real: 
+        ${inventory}
+        
+        REGLAS:
+        1. Sé súper carismática, usa emojis y trata con cariño (mi cielo, corazón, mi amor).
+        2. Si preguntan por la tasa o bolívares, dales el monto exacto: ${rate} Bs/$.
+        3. Fomenta la compra y ofrece el botón de WhatsApp para pedidos personalizados.
+        4. Sé breve y directa.`;
+
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+
         const chat = model.startChat({
             history: [
-                { role: 'user', parts: [{ text: `Eres Rosa Bot de Creaciones Rosa Elena. Inventario: ${inventory}. Reglas: Sé carismática, breve y ofrece ayuda por WhatsApp.` }] },
-                { role: 'model', parts: [{ text: "¡Entendido! Soy Rosa Bot 🎀." }] },
+                { role: 'user', parts: [{ text: prompt }] },
+                { role: 'model', parts: [{ text: "¡Hola! ✨ Soy Rosa Bot 🎀, lista para ayudar con mucho amor." }] },
                 ...(history || []).map(h => ({ role: h.role === 'user' ? 'user' : 'model', parts: [{ text: h.content }] }))
             ]
         });
