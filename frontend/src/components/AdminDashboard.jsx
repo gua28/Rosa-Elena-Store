@@ -230,10 +230,14 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
         if (!window.confirm('¿Estás seguro de que deseas eliminar este pedido? Esta acción no se puede deshacer.')) return;
 
         try {
+            // 1. Limpieza Manual de Cascada: Eliminamos los items del pedido primero para evitar error de Llave Foránea
+            await supabase.from('order_items').delete().eq('order_id', id);
+
+            // 2. Ahora sí podemos borrar la orden maestra sin que la BD se queje
             const { error } = await supabase.from('orders').delete().eq('id', id);
             if (error) throw error;
             
-            alert('Pedido eliminado correctamente.');
+            alert('Pedido y sus artículos eliminados correctamente.');
             setSelectedOrder(null);
             fetchData();
         } catch (error) {
@@ -293,28 +297,31 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
         try {
             const productToDelete = Array.isArray(products) ? products.find(p => p.id === id) : null;
             
-            // Log ANTES de borrar para capturar la info (en caso de que el borrado tenga éxito)
-            const logPromise = supabase.from('inventory_logs').insert([{
-                product_id: id,
-                change_type: 'delete',
-                quantity_changed: 0,
-                previous_stock: productToDelete?.stock || 0,
-                new_stock: 0,
-                timestamp: new Date().toISOString(),
-                reason: `[${productToDelete?.name || 'Producto Desconocido'}] - ELIMINADO por ${user?.name || 'Administrador'}`
-            }]);
+            // 1. Limpiamos manualmente todos los registros del Kardex que tiene este producto.
+            // Esto evita que Supabase bloquee la eliminación por su "Foreign Key Constraint".
+            await supabase.from('inventory_logs').delete().eq('product_id', id);
 
+            // 2. Eliminamos el producto
             const { error } = await supabase.from('products').delete().eq('id', id);
             
             if (error) {
                 if (error.code === '23503') {
-                    alert('No se puede eliminar: Este producto tiene pedidos o registros asociados. Primero debes eliminar sus pedidos para mantener la integridad de la tienda.');
+                    alert('No se puede eliminar: Este producto está amarrado a facturas existentes. Elimina los pedidos de este producto primero.');
                     return;
                 }
                 throw error;
             }
             
-            await logPromise; // Esperamos que el log se guarde si el delete fue bien
+            // 3. (Opcional) Intentamos dejar un registro "fantasma" sin ID de producto para que se sepa que se borró
+            supabase.from('inventory_logs').insert([{
+                change_type: 'delete',
+                quantity_changed: 0,
+                previous_stock: productToDelete?.stock || 0,
+                new_stock: 0,
+                timestamp: new Date().toISOString(),
+                reason: `[${productToDelete?.name || 'Producto Desconocido'}] - ELIMINADO TOTALMENTE por ${user?.name || 'Administrador'}`
+            }]).then(() => {}).catch(() => {});
+
             alert('Producto eliminado exitosamente.');
             fetchData();
         } catch (error) {
