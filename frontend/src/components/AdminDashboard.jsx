@@ -1150,20 +1150,53 @@ const ExportButtons = ({ data, filename, title, type }) => {
                 'Stock Nuevo': l.new_stock
             }));
         }
-        const ws = XLSX.utils.json_to_sheet(exportData);
+        
+        // Crear hoja con título encabezado
+        const ws = XLSX.utils.json_to_sheet([{ A: "CREACIONES ROSA ELENA - REPORTE OFICIAL" }, { A: `Generado: ${new Date().toLocaleString()}` }, {}], { skipHeader: true });
+        XLSX.utils.sheet_add_json(ws, exportData, { origin: "A4" });
+        
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Datos");
+        XLSX.utils.book_append_sheet(wb, ws, "Reporte");
         XLSX.writeFile(wb, `${filename}.xlsx`);
     };
 
-    const handlePDF = () => {
+    const handlePDF = async () => {
         try {
             const doc = new jsPDF();
-            doc.setFontSize(18);
-            doc.text(title, 14, 22);
-            doc.setFontSize(11);
-            doc.setTextColor(100);
-            doc.text(`Generado el: ${new Date().toLocaleString()}`, 14, 30);
+            
+            // --- NUEVO: MARCA DE AGUA (WATERMARK) ---
+            const addWatermark = (pdfDoc) => {
+                const img = new Image();
+                img.src = '/logo.png';
+                // Añadimos el logo centrado con opacidad baja
+                // Nota: jspdf soporta opacidad con setGState
+                try {
+                    pdfDoc.saveGraphicsState();
+                    pdfDoc.setGState(new pdfDoc.GState({ opacity: 0.1 }));
+                    pdfDoc.addImage(img, 'PNG', 40, 80, 130, 130);
+                    pdfDoc.restoreGraphicsState();
+                } catch (e) {
+                    // Fallback si falla la imagen (ej: ruta)
+                    console.log("No se pudo cargar el logo para el PDF", e);
+                }
+            };
+
+            addWatermark(doc);
+
+            doc.setFontSize(22);
+            doc.setTextColor(50);
+            doc.text("Creaciones Rosa Elena", 14, 20);
+            
+            doc.setFontSize(14);
+            doc.setTextColor(79, 70, 229); // Accent color
+            doc.text(title, 14, 30);
+            
+            doc.setFontSize(10);
+            doc.setTextColor(150);
+            doc.text(`Reporte Oficial de Administración | Generado: ${new Date().toLocaleString()}`, 14, 38);
+            
+            doc.setDrawColor(79, 70, 229);
+            doc.line(14, 40, 196, 40);
 
             let headings = [];
             let rows = [];
@@ -1194,9 +1227,17 @@ const ExportButtons = ({ data, filename, title, type }) => {
             autoTable(doc, {
                 head: [headings],
                 body: rows,
-                startY: 40,
-                styles: { fontSize: 9 },
-                headStyles: { fillColor: [79, 70, 229] } // Accent color-ish
+                startY: 48,
+                theme: 'striped',
+                styles: { fontSize: 9, cellPadding: 3 },
+                headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold' },
+                alternateRowStyles: { fillColor: [245, 247, 255] },
+                didDrawPage: (data) => {
+                    // Repetir marca de agua en cada página si es necesario
+                    if (data.pageNumber > 1) {
+                        addWatermark(doc);
+                    }
+                }
             });
 
             doc.save(`${filename}.pdf`);
