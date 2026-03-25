@@ -3,7 +3,6 @@ import {
     LayoutDashboard, Package, ShoppingCart, LogOut, Search,
     Plus, Minus, Edit2, Check, X, AlertTriangle, FileText,
     Upload, Trash2, Eye, TrendingUp, Users, Box, Menu, Heart,
-    Upload, Trash2, Eye, TrendingUp, Users, Box, Menu, Heart,
     ChevronRight, ArrowLeft, Loader2, History, BarChart3, Database, Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
