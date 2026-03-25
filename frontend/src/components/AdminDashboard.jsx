@@ -3,7 +3,8 @@ import {
     LayoutDashboard, Package, ShoppingCart, LogOut, Search,
     Plus, Minus, Edit2, Check, X, AlertTriangle, FileText,
     Upload, Trash2, Eye, TrendingUp, Users, Box, Menu, Heart,
-    ChevronRight, ArrowLeft, Loader2, History, BarChart3, Database
+    Upload, Trash2, Eye, TrendingUp, Users, Box, Menu, Heart,
+    ChevronRight, ArrowLeft, Loader2, History, BarChart3, Database, Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatImageUrl } from '../utils/imageUrl';
@@ -46,6 +47,7 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
     const [inventorySearch, setInventorySearch] = useState('');
     const [orderSearch, setOrderSearch] = useState('');
     const [historySearch, setHistorySearch] = useState('');
+    const [systemUsers, setSystemUsers] = useState([]);
 
     // Helper to calculate totals from recentOrders to ensure consistency
     const calculateLiveTotals = () => {
@@ -149,6 +151,10 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
 
             setInventoryHistory(historyData || []);
             setInventoryReport(reportData);
+
+            // Fetch users for system tab
+            const { data: usersData, error: usersError } = await supabase.from('users').select('*').order('id', { ascending: false });
+            if (!usersError) setSystemUsers(usersData || []);
         } catch (error) {
             console.error('Error fetching admin data:', error);
             setIsLoading(false);
@@ -999,6 +1005,59 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                             <p className="text-xs text-gray-400">{user?.email}</p>
                                         </div>
                                     </div>
+                                </div>
+
+                                {/* VISUAL DATABASE FOR ADMINS */}
+                                <div className="p-8 bg-white rounded-[2.5rem] shadow-sm border border-gray-100 mt-8 overflow-hidden animate-in fade-in slide-in-from-bottom-6 duration-700">
+                                     <div className="flex items-center justify-between mb-6">
+                                         <h3 className="text-xl font-bold flex items-center gap-3 text-gray-900 border-l-4 border-accent pl-4">
+                                             Terminal de Datos: Usuarios
+                                         </h3>
+                                     </div>
+                                     <div className="overflow-x-auto">
+                                        <table className="w-full text-left bg-gray-50 rounded-3xl overflow-hidden min-w-[700px] shadow-inner">
+                                            <thead className="bg-gray-100 text-gray-500 text-xs font-bold uppercase tracking-wider">
+                                                <tr>
+                                                    <th className="px-6 py-4">ID</th>
+                                                    <th className="px-6 py-4">Nombre</th>
+                                                    <th className="px-6 py-4">Email</th>
+                                                    <th className="px-6 py-4">Rol</th>
+                                                    <th className="px-6 py-4 border-l border-gray-200">Hash de Seguridad</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-100 text-sm">
+                                                {systemUsers.map((u) => (
+                                                    <tr key={u.id} className="hover:bg-white transition-colors group">
+                                                        <td className="px-6 py-4 font-black text-gray-400">{u.id}</td>
+                                                        <td className="px-6 py-4 font-bold text-gray-800">{u.name || 'Usuario ' + u.id}</td>
+                                                        <td className="px-6 py-4 text-gray-500 font-medium">{u.email}</td>
+                                                        <td className="px-6 py-4">
+                                                            <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${
+                                                                u.role === 'dueño' ? 'bg-purple-100 text-purple-700' :
+                                                                u.role === 'administrador' ? 'bg-amber-100 text-amber-700' :
+                                                                'bg-blue-100 text-blue-700'
+                                                            }`}>
+                                                                {u.role || 'cliente'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4 border-l border-gray-100">
+                                                            <div className="flex items-center gap-2">
+                                                                <Lock className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+                                                                <span className="font-mono text-xs text-gray-400 max-w-[200px] inline-block truncate group-hover:text-emerald-600 transition-colors" title={u.password}>
+                                                                    {u.password ? u.password : 'Sin contraseña / OAuth'}
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                                {systemUsers.length === 0 && (
+                                                    <tr>
+                                                        <td colSpan="5" className="px-6 py-8 text-center text-gray-400 italic">Cargando base de datos segura...</td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                     </div>
                                 </div>
                             </div>
                         )}
