@@ -1250,10 +1250,8 @@ const ExportButtons = ({ data, filename, title, type }) => {
                 headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold' },
                 alternateRowStyles: { fillColor: [245, 247, 255] },
                 didDrawPage: (data) => {
-                    // Repetir marca de agua en cada página si es necesario
-                    if (data.pageNumber > 1) {
-                        addWatermark(doc);
-                    }
+                    // Solo dibujamos marca de agua/logo en la página 1 ya fue llamada antes de iniciar
+                    // Pero si el reporte es muy largo, no queremos saturar las siguientes páginas
                 }
             });
 
