@@ -4,7 +4,7 @@
  * y cuenta con un "Cerebro Local" avanzado para Interacción Libre sin API.
  */
 
-export const askGemini = async (message, history = [], products = []) => {
+export const askGemini = async (message, history = [], products = [], settings = {}) => {
     const lowerMsg = message.toLowerCase();
     
     // Función auxiliar para obtener una respuesta aleatoria de un array
@@ -26,7 +26,7 @@ export const askGemini = async (message, history = [], products = []) => {
             response = await fetchWithTimeout('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message, history, products })
+                body: JSON.stringify({ message, history, products, settings })
             }, 4000);
         } catch (e) {
             console.log("Fetch a Vercel falló o superó el tiempo...");
@@ -41,7 +41,7 @@ export const askGemini = async (message, history = [], products = []) => {
                 response = await fetchWithTimeout(`${API_BASE_URL}/chat`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message, history })
+                    body: JSON.stringify({ message, history, settings })
                 }, 5000);
             } catch (e) {
                 console.log("Python Backend falló o superó el tiempo...");
@@ -141,6 +141,14 @@ export const askGemini = async (message, history = [], products = []) => {
         // 2.5 CONSULTAS COMERCIALES
         if (lowerMsg.includes("precio") || lowerMsg.includes("costo") || lowerMsg.includes("cuanto val") || lowerMsg.includes("presupuesto")) {
             return "¡Me adapto a tu presupuesto! 🌸 Tengo detallitos tan cucos como apliques desde $2, hasta grandes piñatas personalizadas. Si me dices exactamente qué te gusta, ¡te calculo rápido! 😊";
+        }
+
+        if (lowerMsg.includes("tasa") || lowerMsg.includes("bolivares") || lowerMsg.includes("bolívares") || lowerMsg.includes("cambio") || lowerMsg.includes("bs")) {
+             const rate = settings.currency_rate || 0;
+             if (rate > 0) {
+                 return `¡Claro que sí, corazón! ✨ La tasa que estamos recibiendo hoy es de **${rate} Bs/$**. Si ves algo que te gusta, ¡podemos calcularlo ya mismo! 🎀`;
+             }
+             return "¡Ay, mi cielo! La tasa de cambio varía un poquito cada día. 🌸 Pero no te preocupes, aceptamos pagos en bolívares a la tasa actualizada del momento. ¿Te gustaría que consultara un precio específico? ✨";
         }
 
         if (lowerMsg.includes("personalizado") || lowerMsg.includes("pedido") || lowerMsg.includes("encargo")) {

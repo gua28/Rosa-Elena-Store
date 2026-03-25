@@ -12,19 +12,27 @@ const Chatbot = () => {
         { id: 1, text: "¡Hola! ✨ Soy Rosa Bot 🎀, tu asistente de Creaciones Rosa Elena. ¿Qué cosita linda estás buscando hoy? 😊", sender: 'bot' }
     ]);
     const [products, setProducts] = useState([]);
+    const [settings, setSettings] = useState({});
     const messagesEndRef = useRef(null);
 
     useEffect(() => {
-        const fetchProducts = async () => {
+        const fetchStoreData = async () => {
             try {
-                const { data, error } = await supabase.from('products').select('*');
-                if (error) throw error;
-                setProducts(data || []);
+                // Fetch Products
+                const { data: prodData } = await supabase.from('products').select('*');
+                setProducts(prodData || []);
+
+                // Fetch Settings (Rate)
+                const { data: settingsData } = await supabase.from('settings').select('*');
+                if (settingsData) {
+                    const settingsObj = settingsData.reduce((acc, curr) => ({ ...acc, [curr.key]: curr.value }), {});
+                    setSettings(settingsObj);
+                }
             } catch (error) {
-                console.error("Error fetching products for chatbot:", error);
+                console.error("Error fetching store data for chatbot:", error);
             }
         };
-        fetchProducts();
+        fetchStoreData();
     }, []);
 
     const whatsappNumber = "584127827734"; // Actualizar al número real
@@ -62,7 +70,7 @@ const Chatbot = () => {
             }));
 
             // Llamada a la utilidad centralizada gemini.js
-            const replyText = await askGemini(text, historyForGemini, products);
+            const replyText = await askGemini(text, historyForGemini, products, settings);
 
             // Detectar si la IA menciona contacto para mostrar botón de WhatsApp
             const needsWhatsapp = replyText.toLowerCase().includes('whatsapp') || 
