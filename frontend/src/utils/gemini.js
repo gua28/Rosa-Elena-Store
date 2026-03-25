@@ -7,8 +7,13 @@
 export const askGemini = async (message, history = [], products = [], settings = {}) => {
     const lowerMsg = message.toLowerCase();
     
-    // Función auxiliar para obtener una respuesta aleatoria de un array
-    const random = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    // --- NUEVA LÓGICA DE PRIORIDAD: Detectar Tasa ANTES de llamar a la nube ---
+    if (lowerMsg.includes("tasa") || lowerMsg.includes("bolivares") || lowerMsg.includes("bolívares") || lowerMsg.includes("cambio") || lowerMsg.includes("bs") || lowerMsg.includes("moneda") || lowerMsg.includes("pagar en")) {
+        const rate = settings.currency_rate || 0;
+        if (rate > 0) {
+            return `¡Claro que sí, mi cielo! ✨ Actualmente estamos recibiendo los pagos a una tasa de **${rate} Bs/$**. 🎀 ¡Así puedes calcular tus regalitos más fácil! 😊`;
+        }
+    }
 
     try {
         console.log("Rosa Bot conectando con la nube para interacción total...");
