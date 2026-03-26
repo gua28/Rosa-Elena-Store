@@ -83,6 +83,36 @@ function LoginPage({ onBack, onLogin, onGoToRegister }) {
         }
     };
 
+    const [isResetting, setIsResetting] = useState(false);
+    const [resetMessage, setResetMessage] = useState('');
+
+    const handleForgotPassword = async () => {
+        if (!credentials.email) {
+            setError('Por favor, ingresa tu email primero para enviarte el enlace de recuperación.');
+            return;
+        }
+
+        setError('');
+        setResetMessage('');
+        setIsResetting(true);
+
+        try {
+            const { error: resetError } = await supabase.auth.resetPasswordForEmail(credentials.email, {
+                redirectTo: `${window.location.origin}/reset-password`, 
+            });
+
+            if (resetError) {
+                setError('No pudimos enviar el correo: ' + (resetError.message === 'User not found' ? 'No encontramos una cuenta con ese email.' : resetError.message));
+            } else {
+                setResetMessage('¡Listo! Te hemos enviado un enlace a tu correo para que cambies tu contraseña. Revisa tu bandeja de entrada o SPAM.');
+            }
+        } catch (err) {
+            setError('Error al intentar enviar el correo de recuperación.');
+        } finally {
+            setIsResetting(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-primary-light/30 flex items-center justify-center p-4 py-12">
             <div className="w-full max-w-md">
@@ -103,8 +133,14 @@ function LoginPage({ onBack, onLogin, onGoToRegister }) {
                     </div>
 
                     {error && (
-                        <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 text-sm rounded-xl">
+                        <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 text-sm rounded-xl animate-in fade-in slide-in-from-top-2 duration-300">
                             {error}
+                        </div>
+                    )}
+
+                    {resetMessage && (
+                        <div className="mb-6 p-4 bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm rounded-xl animate-in fade-in slide-in-from-top-2 duration-300">
+                            {resetMessage}
                         </div>
                     )}
 
@@ -158,7 +194,13 @@ function LoginPage({ onBack, onLogin, onGoToRegister }) {
                     </form>
 
                     <div className="mt-10 pt-8 border-t border-gray-100 flex flex-col gap-4 text-center">
-                        <button className="text-sm text-gray-500 hover:text-primary transition-colors">¿Olvidaste tu contraseña?</button>
+                        <button 
+                            onClick={handleForgotPassword}
+                            disabled={isResetting}
+                            className={`text-sm text-gray-500 hover:text-primary transition-colors ${isResetting ? 'opacity-50' : ''}`}
+                        >
+                            {isResetting ? 'Enviando email...' : '¿Olvidaste tu contraseña?'}
+                        </button>
                         <p className="text-sm text-gray-500">
                             ¿No tienes cuenta? <button onClick={onGoToRegister} className="font-bold text-primary hover:underline">Regístrate</button>
                         </p>
