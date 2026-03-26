@@ -28,7 +28,7 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { message, history, products } = req.body;
+        const { message, history, products, settings, cart } = req.body;
         
         if (!message) {
             return res.status(400).json({ error: 'Mensaje requerido' });
@@ -36,46 +36,53 @@ export default async function handler(req, res) {
 
         const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
         
-        // Probamos modelos en cascada inteligente para asegurar respuesta
-        const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-pro"];
-        let model = null;
-        let lastError = null;
+        const rate = settings?.currency_rate || 0;
+        const rateText = rate > 0 ? `Tasa del día: ${rate} Bs/$.` : "Consulta la tasa por WhatsApp.";
 
-        for (const modelName of models) {
-            try {
-                // Configuramos el modelo y probamos su acceso
-                model = genAI.getGenerativeModel({ model: modelName });
-                break;
-            } catch (err) {
-                lastError = err;
-                console.error(`Error inicializando ${modelName}:`, err.message);
-            }
-        }
-
-        if (!model) {
-            throw new Error("No se pudo conectar con ningún motor de Google. ¡Revisa tu llave!");
-        }
-
+        // Inventario resumido
         let inventoryContext = "";
-        (products || []).forEach(p => {
+        (products || []).slice(0, 20).forEach(p => {
             const status = p.stock > 0 ? "Disponible" : "SIN STOCK (Agotado)";
-            inventoryContext += `- ${p.name} ($${p.price}): ${status}. Desc: ${p.description}\n`;
+            inventoryContext += `- [ID:${p.id}] ${p.name} ($${p.price}): ${status}.\n`;
         });
+
+        // Carrito actual
+        let cartStatus = "El carrito está vacío.";
+        if (cart && cart.length > 0) {
+            const items = cart.map(p => `- ${p.name} ($${p.price})`).join("\n");
+            const total = cart.reduce((acc, p) => acc + (p.price || 0), 0);
+            cartStatus = `En el carrito hay:\n${items}\nTotal actual: $${total.toFixed(2)}`;
+        }
 
         const systemInstruction = `
         Eres Rosa Bot 🎀 de 'Creaciones Rosa Elena'. 
         Personalidad: Carismática, amorosa, profesional, persuasiva. 😊✨
-        Habilidades: Asesorar sobre lazos, piñatas, birretes y pedidos personalizados.
-
-        INVENTARIO REAL (Úsalo siempre):
+        
+        CONTEXTO DE VENTAS:
+        ${rateText}
+        
+        INVENTARIO REAL:
         ${inventoryContext}
-
+        
+        ESTADO DEL CARRITO DEL CLIENTE:
+        ${cartStatus}
+        
+        COMANDOS ESPECIALES (Úsalos al final de tu respuesta si es necesario):
+        - Para agregar al carrito: [ADD_TO_CART:ID] (sustituye ID por el número del producto). Solo si el cliente lo pide o acepta una sugerencia.
+        - Para mostrar el carrito o finalizar compra: [CHECKOUT] o [OPEN_CART].
+        
         REGLAS DE ORO:
-        1. Responde de forma breve y cariñosa.
-        2. Si algo está agotado, ofrece personalizarlo rápidamente.
-        3. Invita a ver el catálogo o escribir por WhatsApp para detalles.
+        1. Responde de forma breve y cariñosa. Usa emojis. 🌸
+        2. Si el cliente quiere comprar algo disponible, usa el comando [ADD_TO_CART:ID].
+        3. Si el cliente pregunta qué tiene en su carrito, diles lo que ves en "ESTADO DEL CARRITO" y ofrece finalizar con [CHECKOUT].
         4. Eres Rosa Bot, el asistente oficial. 🎀
         `;
+
+        // Probamos modelos en cascada inteligente
+        const models = ["gemini-1.5-flash", "gemini-1.5-pro"];
+        let model = null;
+
+        model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         const chat = model.startChat({
             history: [
@@ -99,7 +106,6 @@ export default async function handler(req, res) {
 
     } catch (error) {
         console.error("Vercel AI Error:", error);
-        // Si falla la IA en la nube, devolvemos un error estructurado que el frontend sepa manejar con el motor local
         return res.status(500).json({ error: "Cloud connection failed" });
     }
 }
