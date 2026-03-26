@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../utils/supabaseClient';
 import { askGemini } from '../utils/gemini';
 
-const Chatbot = ({ onAddToCart }) => {
+const Chatbot = ({ onAddToCart, cart = [], onOpenCart }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
@@ -70,24 +70,31 @@ const Chatbot = ({ onAddToCart }) => {
             }));
 
             // Llamada a la utilidad centralizada gemini.js
-            const replyText = await askGemini(text, historyForGemini, products, settings);
+            const replyText = await askGemini(text, historyForGemini, products, settings, cart);
 
             // Detectar si la IA menciona contacto para mostrar botón de WhatsApp
             const needsWhatsapp = replyText.toLowerCase().includes('whatsapp') || 
                                  replyText.toLowerCase().includes('personalizado') ||
                                  replyText.toLowerCase().includes('pedido');
 
-            // --- NUEVA LÓGICA DE CARRITO: Detectar comando de la IA ---
+            // --- LÓGICA DE CARRITO: Detectar comandos de la IA ---
             let cleanReply = replyText;
+
+            // 1. ADD_TO_CART:id
             const cartMatch = replyText.match(/\[ADD_TO_CART:(\d+)\]/i);
-            
             if (cartMatch && onAddToCart) {
                 const prodId = parseInt(cartMatch[1]);
                 const prod = products.find(p => p.id === prodId);
                 if (prod) {
                     onAddToCart(prod);
-                    cleanReply = replyText.replace(/\[ADD_TO_CART:\d+\]/gi, '').trim();
+                    cleanReply = cleanReply.replace(/\[ADD_TO_CART:\d+\]/gi, '').trim();
                 }
+            }
+
+            // 2. OPEN_CART o CHECKOUT
+            if (replyText.includes('[OPEN_CART]') || replyText.includes('[CHECKOUT]')) {
+                if (onOpenCart) onOpenCart();
+                cleanReply = cleanReply.replace(/\[OPEN_CART\]/gi, '').replace(/\[CHECKOUT\]/gi, '').trim();
             }
 
             setMessages(prev => [...prev, {

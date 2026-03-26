@@ -4,10 +4,12 @@
  * y cuenta con un "Cerebro Local" avanzado para Interacción Libre sin API.
  */
 
-export const askGemini = async (message, history = [], products = [], settings = {}) => {
+const random = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+export const askGemini = async (message, history = [], products = [], settings = {}, cart = []) => {
     const lowerMsg = message.toLowerCase();
     
-    // --- NUEVA LÓGICA DE PRIORIDAD: Detectar Tasa y CALCULADORA ---
+    // --- LÓGICA DE PRIORIDAD: Detectar Tasa y CALCULADORA ---
     if (lowerMsg.includes("tasa") || lowerMsg.includes("bolivares") || lowerMsg.includes("bolívares") || lowerMsg.includes("cambio") || lowerMsg.includes("bs") || lowerMsg.includes("moneda") || lowerMsg.includes("pagar en")) {
         const rate = parseFloat(settings.currency_rate || 0);
         if (rate > 0) {
@@ -38,7 +40,7 @@ export const askGemini = async (message, history = [], products = [], settings =
             response = await fetchWithTimeout('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message, history, products, settings })
+                body: JSON.stringify({ message, history, products, settings, cart })
             }, 4000);
         } catch (e) {
             console.log("Fetch a Vercel falló o superó el tiempo...");
@@ -53,7 +55,7 @@ export const askGemini = async (message, history = [], products = [], settings =
                 response = await fetchWithTimeout(`${API_BASE_URL}/chat`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message, history, settings })
+                    body: JSON.stringify({ message, history, settings, cart })
                 }, 5000);
             } catch (e) {
                 console.log("Python Backend falló o superó el tiempo...");
@@ -89,6 +91,23 @@ export const askGemini = async (message, history = [], products = [], settings =
             ]);
         }
 
+        // 2. LÓGICA DE CARRITO Y COMPRAS (LOCAL)
+        if (lowerMsg.includes("carrito") || lowerMsg.includes("compras") || lowerMsg.includes("tengo") || lowerMsg.includes("metido") || lowerMsg.includes("agregado")) {
+            if (cart.length === 0) {
+                return "¡Tu carrito está vacío, mi cielo! 🌸 Pero no te preocupes, podemos empezar a llenarlo con cositas bellas ahora mismo. ¿Buscabas algo en especial?";
+            }
+            const cartItems = cart.map(p => `- ${p.name} ($${p.price})`).join("\n");
+            const total = cart.reduce((acc, p) => acc + (p.price || 0), 0);
+            return `¡Claro, corazón! ✨ En tu carrito tienes:\n${cartItems}\n\nEl total es de **$${total.toFixed(2)}**. 🎀 ¿Te gustaría ya finalizar tu compra o prefieres seguir viendo más bellezas? [OPEN_CART]`;
+        }
+
+        if (lowerMsg.includes("pagar") || lowerMsg.includes("comprar") || lowerMsg.includes("finalizar") || lowerMsg.includes("checkout")) {
+            if (cart.length === 0) {
+                return "¡Ay, mi vida! Para poder pagar primero necesitamos elegir algo lindo que te quieras llevar. 🎀 ¿Qué te parece si vemos los lazos nuevos?";
+            }
+            return "¡Excelente elección! 💖 Te estoy abriendo el carrito para que puedas completar tu pedido y coordinar el pago. ¡Te va a encantar lo que elegiste! ✨ [CHECKOUT]";
+        }
+
         if (lowerMsg.includes("gracias") || lowerMsg.includes("agradezco")) {
             return "¡No hay de qué, corazón! 💖 Es un placer para mí. ¿Necesitas ver algo más de nuestro catálogo? 🎀";
         }
@@ -97,10 +116,10 @@ export const askGemini = async (message, history = [], products = [], settings =
             return "A ver... ¿Qué le dice un lazo a una trenza? ¡Oye, deja de enredarte tanto! 😂 Bromas aparte, ¡mis lazos nunca se portan mal! ✨";
         }
 
-        // --- 2. SUPER CEREBRO LOCAL (ASESORÍA E INVENTARIO) ---
+        // --- 3. SUPER CEREBRO LOCAL (ASESORÍA E INVENTARIO) ---
         const availableProducts = products.filter(p => p.stock > 0);
 
-        // 2.1 INVENTARIO Y DISPONIBILIDAD GENERAL
+        // 3.1 INVENTARIO Y DISPONIBILIDAD GENERAL
         if (lowerMsg.includes("inventario") || lowerMsg.includes("disponible") || lowerMsg.includes("que tienes") || lowerMsg.includes("opciones") || lowerMsg.includes("catalogo") || lowerMsg.includes("catálogo")) {
             if (availableProducts.length === 0) {
                  return "En este momento estamos renovando el inventario, pero hacemos bellezas bajo pedido. 🌸 ¿Buscabas alguna temática o color en especial?";
@@ -109,11 +128,11 @@ export const askGemini = async (message, history = [], products = [], settings =
             return `¡Tengo cositas hermosas listas de entrega inmediata! ✨ Por ejemplo: ${items}. Si buscas algo distinto, también trabajo bajo pedido. ¿Qué ideas tienes? 🎀`;
         }
 
-        // 2.2 ASESORÍA Y RECOMENDACIÓN DE VENTAS
+        // 3.2 ASESORÍA Y RECOMENDACIÓN DE VENTAS
         if (lowerMsg.includes("recomienda") || lowerMsg.includes("sugiere") || lowerMsg.includes("que compro") || lowerMsg.includes("regalo") || lowerMsg.includes("busco algo para") || lowerMsg.includes("asesora") || lowerMsg.includes("ayudame a elegir")) {
             if (availableProducts.length > 0) {
                 const prod = random(availableProducts);
-                return `¡Ay, me fascina asesorar! 😍 Para un regalo espectacular, el "${prod.name}" está en tendencia. A las niñas les encanta y su precio es de $${prod.price}. ¡Además lo tengo listo para entrega! 🎁 ¿Te gustaría que te lo separe?`;
+                return `¡Ay, me fascina asesorar! 😍 Para un regalo espectacular, el "${prod.name}" está en tendencia. A las niñas les encanta y su precio es de $${prod.price}. ¡Además lo tengo listo para entrega! 🎁 ¿Te gustaría que te lo separe? [ADD_TO_CART:${prod.id}]`;
             } else if (products.length > 0) {
                 const prod = random(products);
                 return `¡Me encantaría ayudarte a elegir! ✨ El "${prod.name}" es nuestro producto estrella. Aunque toca hacerlo bajo pedido, queda precioso. Su valor referencial es $${prod.price}. ¿Qué opinas? 🌸`;
@@ -121,7 +140,7 @@ export const askGemini = async (message, history = [], products = [], settings =
             return "Para algo especial, te recomiendo un lazo estilo 'Gala' con cristales. ✨ ¡Pegan con todo y son el centro de atención! 🌸";
         }
 
-        // 2.3 CONSULTAS SOBRE PRODUCTOS ESPECÍFICOS SEGÚN INVENTARIO
+        // 3.3 CONSULTAS SOBRE PRODUCTOS ESPECÍFICOS SEGÚN INVENTARIO
         const relevantProducts = products.filter(p => 
             lowerMsg.includes(p.name.toLowerCase()) || 
             (p.category && lowerMsg.includes(p.category.toLowerCase()))
@@ -140,7 +159,7 @@ export const askGemini = async (message, history = [], products = [], settings =
             return `¡Qué buena elección! ✨ El "${p.name}" cuesta **$${p.price}**${priceBs}. ${stockMsg} ${cartCmd} 🎀 ¿Te gustaría que te ayude a completar tu pedido? 😊`;
         }
 
-        // 2.4 PREGUNTAS POR CATEGORÍA DE PRODUCTOS
+        // 3.4 PREGUNTAS POR CATEGORÍA DE PRODUCTOS
         if (lowerMsg.includes("lazo") || lowerMsg.includes("moño") || lowerMsg.includes("cintillo")) {
             const lazosStock = availableProducts.filter(p => p.name.toLowerCase().includes("lazo") || p.name.toLowerCase().includes("moño") || p.name.toLowerCase().includes("cintillo"));
             if (lazosStock.length > 0) {
@@ -157,7 +176,7 @@ export const askGemini = async (message, history = [], products = [], settings =
             return "¡Las piñatas en 3D y tambor de Rosa Elena son monumentales! 🎂 Las diseñamos bajo pedido para que tu fiesta sea inolvidable. Cuéntame, ¿qué temática te imaginas? 🎈";
         }
 
-        // 2.5 CONSULTAS COMERCIALES
+        // 3.5 CONSULTAS COMERCIALES
         if (lowerMsg.includes("precio") || lowerMsg.includes("costo") || lowerMsg.includes("cuanto val") || lowerMsg.includes("presupuesto")) {
             return "¡Me adapto a tu presupuesto! 🌸 Tengo detallitos tan cucos como apliques desde $2, hasta grandes piñatas personalizadas. Si me dices exactamente qué te gusta, ¡te calculo rápido! 😊";
         }

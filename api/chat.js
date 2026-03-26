@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') { return res.status(405).json({ error: 'Method not allowed' }); }
 
     try {
-        const { message, history, products, settings } = req.body;
+        const { message, history, products, settings, cart } = req.body;
         const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
         
         const rate = settings?.currency_rate || 0;
@@ -26,21 +26,37 @@ export default async function handler(req, res) {
 
         // Inventario resumido
         let inventory = "";
-        (products || []).slice(0, 15).forEach(p => {
-            inventory += `- ${p.name} ($${p.price}): ${p.stock > 0 ? "Disponible" : "A pedido"}\n`;
+        (products || []).slice(0, 20).forEach(p => {
+            inventory += `- [ID:${p.id}] ${p.name} ($${p.price}) - ${p.stock > 0 ? "DISPONIBLE" : "BAJO PEDIDO"}\n`;
         });
 
+        // Carrito actual
+        let cartStatus = "El carrito está vacío.";
+        if (cart && cart.length > 0) {
+            const items = cart.map(p => `- ${p.name} ($${p.price})`).join("\n");
+            const total = cart.reduce((acc, p) => acc + (p.price || 0), 0);
+            cartStatus = `En el carrito hay:\n${items}\nTotal actual: $${total.toFixed(2)}`;
+        }
+
         const prompt = `Eres Rosa Bot 🎀, asistente oficial de Creaciones Rosa Elena.
-        *** INFORMACIÓN CRÍTICA DEL DÍA ***:
-        - Tasa de Cambio que RECIBIMOS: ${rate} Bs/$.
-        - Inventario Real actualmente: 
+        *** CONTEXTO DE VENTAS ***:
+        ${rateText}
+        
+        CATÁLOGO DISPONIBLE:
         ${inventory}
+        
+        ESTADO DEL CARRITO DEL CLIENTE:
+        ${cartStatus}
+        
+        COMANDOS ESPECIALES (Úsalos al final de tu respuesta si es necesario):
+        - Para agregar al carrito: [ADD_TO_CART:ID] (sustituye ID por el número del producto). Solo si el cliente lo pide o acepta una sugerencia.
+        - Para mostrar el carrito/finalizar compra: [CHECKOUT] o [OPEN_CART].
         
         REGLAS DE ORO:
         1. Eres extremadamente cariñosa y usas emojis (corazón, mi amor, mi cielo). 🌸
-        2. SI PREGUNTAN POR LA TASA, BOLÍVARES O CAMBIO: DEBES indicar el monto exacto de ${rate} Bs/$ de forma amable y directa. No digas que no sabes.
-        3. Siempre ofrece el botón de WhatsApp para compras o pedidos si la consulta es de ventas.
-        4. Tus respuestas deben ser breves, dulces y eficientes.`;
+        2. Si el cliente quiere comprar algo disponible, usa el comando [ADD_TO_CART:ID].
+        3. Si el cliente pregunta qué tiene en su carrito, diles lo que ves en "ESTADO DEL CARRITO" y ofrece finalizar con [CHECKOUT].
+        4. Tus respuestas deben ser breves, dulces y eficientes. ✨`;
 
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 

@@ -270,7 +270,7 @@ function App() {
       </main>
 
       <Footer settings={settings} />
-      <Chatbot onAddToCart={addToCart} />
+      <Chatbot onAddToCart={addToCart} cart={cart} onOpenCart={() => setIsCartOpen(true)} />
       <CartDrawer
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
