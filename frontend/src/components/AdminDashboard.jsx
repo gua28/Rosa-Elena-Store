@@ -1029,7 +1029,9 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                                     <tr key={u.id} className="hover:bg-white transition-colors group">
                                                         <td className="px-6 py-4 font-black text-gray-400">{u.id}</td>
                                                         <td className="px-6 py-4 font-bold text-gray-800">{u.name || 'Usuario ' + u.id}</td>
-                                                        <td className="px-6 py-4 text-gray-500 font-medium">{u.email}</td>
+                                                        <td className="px-6 py-4 text-gray-500 font-medium">
+                                                            {u.email ? u.email.replace(/^(.)(.*)(.@.*)$/, (_, a, b, c) => a + "*".repeat(b.length) + c) : 'N/A'}
+                                                        </td>
                                                         <td className="px-6 py-4">
                                                             <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${
                                                                 u.role === 'dueño' ? 'bg-purple-100 text-purple-700' :
@@ -1042,8 +1044,8 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
                                                         <td className="px-6 py-4 border-l border-gray-100">
                                                             <div className="flex items-center gap-2">
                                                                 <Lock className="h-4 w-4 text-emerald-500 flex-shrink-0" />
-                                                                <span className="font-mono text-xs text-gray-400 max-w-[200px] inline-block truncate group-hover:text-emerald-600 transition-colors" title={u.password}>
-                                                                    {u.password ? u.password : 'Sin contraseña / OAuth'}
+                                                                <span className="font-mono text-[10px] text-gray-300 font-bold uppercase tracking-widest">
+                                                                    {u.password ? '•••••••• ••••' : 'SESIÓN EXTERNA'}
                                                                 </span>
                                                             </div>
                                                         </td>
