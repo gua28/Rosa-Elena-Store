@@ -106,10 +106,11 @@ const AdminDashboard = ({ onLogout, onBack, fetchSettings, settings, user }) => 
             
             const statsData = {
                 totalSales: `$${totalSalesSum.toFixed(2)}`,
-                newOrders: ordersData.filter(o => o.status === 'procesando').length.toString(),
+                newOrders: ordersData.filter(o => o.status === 'procesando' || o.status === 'esperando pago' || o.status === 'pagado_pendiente_revision').length.toString(),
                 activeProducts: prodData.length.toString(),
                 recentOrders: ordersData.map(o => ({ ...o, items: JSON.parse(o.items_json || '[]') }))
             };
+
 
             // Compute alerts directly from the products list
             const lowStockNames = prodData.filter(p => p.stock > 0 && p.stock <= 5).map(p => p.name);

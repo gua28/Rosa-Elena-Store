@@ -1,3 +1,5 @@
+import { API_BASE_URL } from './api';
+
 const SUPABASE_URL = 'https://ghjvojncdugaifoxpwex.supabase.co';
 const BUCKET_NAME = 'products'; // Assuming your bucket is named 'products'
 
@@ -10,12 +12,14 @@ export const formatImageUrl = (url) => {
     // IF IT'S BASE64 DATA (NEW SYSTEM), RETURN AS IS
     if (url.startsWith('data:image/')) return url;
     
-    // Extract filename if it contains old paths like '/uploads/' or 'http://127.0.0.1:8000/uploads/'
-    let fileName = url;
+    // If it refers to a local upload path from the backend
     if (url.includes('/uploads/')) {
-        fileName = url.split('/uploads/').pop();
+        const fileName = url.split('/uploads/').pop();
+        return `${API_BASE_URL}/uploads/${fileName}`;
     }
     
-    // Return the Supabase public storage URL
-    return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/${fileName}`;
+    // Default fallback: Return the Supabase public storage URL from the products bucket
+    // Note: If the file is not in 'products' bucket, this might need further refinement
+    return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/${url}`;
 };
+
